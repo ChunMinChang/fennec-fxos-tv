@@ -14,22 +14,20 @@ const ICON_XXHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADYAAAAtCAYAA
  * Global Variables
  * ==================================
  */
-var gToastMenuId = null;
-var gDoorhangerMenuId = null;
-var gContextMenuId = null;
-
 var gCastingMenuId = null;
 var gPageActionId = null;
 var gPageActionIcon = null;
+
+
 
 /*
  * XPCOM modules
  * ==================================
  */
-
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/PageActions.jsm");
+Cu.import("resource://gre/modules/Prompt.jsm");
 
 // An example of how to create a string bundle for localization.
 XPCOMUtils.defineLazyGetter(this, "Strings", function() {
@@ -43,6 +41,8 @@ XPCOMUtils.defineLazyGetter(this, "Helper", function() {
   return sandbox["Helper"];
 });
 
+
+
 /*
  * Utils
  * ==================================
@@ -50,6 +50,8 @@ XPCOMUtils.defineLazyGetter(this, "Helper", function() {
 function DEBUG_LOG(msg) {
   console.log(msg);
 }
+
+
 
 /*
  * Core Functions
@@ -80,16 +82,50 @@ function showCastingOptions(win) {
 
 function chooseAction(win) {
   DEBUG_LOG('###### chooseAction');
-  var title = Strings.GetStringFromName("prompt.title");
-  win.alert(title);
+  var currentURL = win.BrowserApp.selectedBrowser.currentURI.spec;
+
+  var items = [
+    // TODO: Only show video option when a video is present.
+    { label: Strings.GetStringFromName("prompt.sendVideo") },
+    { label: Strings.GetStringFromName("prompt.sendURL") },
+    { label: Strings.GetStringFromName("prompt.addURL") },
+  ];
+
+  // See documentation here: https://developer.mozilla.org/en-US/Add-ons/Firefox_for_Android/API/Prompt.jsm
+  // TODO: We might need setMultiChoiceItems in our case
+  var p = new Prompt({
+    title: Strings.GetStringFromName("prompt.title")
+  });
+  p.setSingleChoiceItems(items);
+
+  // TODO: Get real remote control URL.
+  var remoteControlURL = "https://mozilla.org";
+
+  p.show(function(data) {
+    switch (data.button) {
+      case 0:
+        win.alert("TODO: send video from page: " + currentURL);
+        break;
+
+      case 1:
+        win.alert("TODO: send URL from page: " + currentURL);
+        win.BrowserApp.addTab(remoteControlURL);
+        break;
+
+      case 2:
+        win.alert("TODO: add URL to TV home screen: " + currentURL);
+        win.BrowserApp.addTab(remoteControlURL);
+        break;
+    }
+  });
 }
 
 function shouldCast(win) {
   DEBUG_LOG('###### shouldCast');
   var currentURL = win.BrowserApp.selectedBrowser.currentURI.spec;
-  DEBUG_LOG('  >> url: ' + currentURL);
-  var matchStr = 'youtube.com';
-  if (currentURL.includes(matchStr)) {
+  // TODO: Use presentation api to determine this boolean
+  var deviceFounded = currentURL.includes('youtube.com');
+  if (deviceFounded) {
     return true;
   }
   return false;
@@ -135,45 +171,15 @@ function addCastingIconToURLBar(win) {
   });
 }
 
+
+
 /*
  * Program Flow Control
  * ==================================
  */
-function showToast(aWindow) {
-  aWindow.NativeWindow.toast.show(Strings.GetStringFromName("toast.message"), "short");
-}
-
-function showDoorhanger(aWindow) {
-  let buttons = [
-    {
-      label: "Button 1",
-      callback: function() {
-        aWindow.NativeWindow.toast.show("Button 1 was tapped", "short");
-      }
-    } , {
-      label: "Button 2",
-      callback: function() {
-        aWindow.NativeWindow.toast.show("Button 2 was tapped", "short");
-      }
-    }];
-
-  aWindow.NativeWindow.doorhanger.show("Showing a doorhanger with two button choices.", "doorhanger-test", buttons);
-}
-
-function copyLink(aWindow, aTarget) {
-  let url = aWindow.NativeWindow.contextmenus._getLinkURL(aTarget);
-  aWindow.NativeWindow.toast.show("Todo: copy > " + url, "short");
-}
-
 function loadIntoWindow(window) {
   DEBUG_LOG('## loadIntoWindow');
-  gToastMenuId = window.NativeWindow.menu.add("Show Toast", null, function() { showToast(window); });
-  gDoorhangerMenuId = window.NativeWindow.menu.add("Show Doorhanger", null, function() { showDoorhanger(window); });
-  gContextMenuId = window.NativeWindow.contextmenus.add("Copy Link", window.NativeWindow.contextmenus.linkOpenableContext, function(aTarget) { copyLink(window, aTarget); });
-
-  // gCastingMenuId = window.NativeWindow.menu.add("Cast", null, function() { addCastingIconToURLBar(window); });
   gCastingMenuId = window.NativeWindow.menu.add("Cast", null, function() { showCastingOptions(window); });
-
   let contentLoadedListener = function() {
     DEBUG_LOG('  >> contentLoadedListener()');
     addCastingIconToURLBar(window);
@@ -183,13 +189,11 @@ function loadIntoWindow(window) {
 
 function unloadFromWindow(window) {
   DEBUG_LOG('## unloadFromWindow');
-  window.NativeWindow.menu.remove(gToastMenuId);
-  window.NativeWindow.menu.remove(gDoorhangerMenuId);
-  window.NativeWindow.contextmenus.remove(gContextMenuId);
-
   window.NativeWindow.menu.remove(gCastingMenuId);
   PageActions.remove(gPageActionId);
 }
+
+
 
 /**
  * bootstrap.js API

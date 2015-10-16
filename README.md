@@ -6,3 +6,7 @@ A simple fennec add-on for Firefox OS smart TV. This project is based on [leibov
 
 ## Remove related files
 ./remove_files
+
+## TODO:
+- Show casting-icon only when devices that support presentation API were found.
+- Change the cast-list dynamically by webpage content
