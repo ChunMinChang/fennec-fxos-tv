@@ -1,0 +1,10 @@
+#!/bin/bash
+
+XPI=fennec-fxos-tv.xpi
+INST_PAGE=install.html
+
+# Push the add-on to your device to test
+adb shell rm /sdcard/$INST_PAGE && \
+adb shell rm /sdcard/$XPI \
+
+echo Remove $XPI and $INST_PAGE from device\'s /sdcard
