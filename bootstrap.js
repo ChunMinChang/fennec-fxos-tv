@@ -14,11 +14,7 @@ const ICON_XXHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADYAAAAtCAYAA
  * Global Variables
  * ==================================
  */
-var gCastingMenuId = null;
-var gPageActionId = null;
-var gPageActionIcon = null;
-
-
+var castingMgr = new CastingManager();
 
 /*
  * XPCOM modules
@@ -62,124 +58,234 @@ function DEBUG_LOG(msg) {
  * Presentation API
  * ----------------------
  */
- // var PresentationManager = {
- //
- // };
+function PresentationDevice() {
+  this.id = null;
+  this.name = null;
+  this.type = null;
+  this.castVideoEnabled = false;
+  this.castPageEnabled = false;
+  this.pinPageEnabled = false;
+}
+
+ var PresentationManager = {
+   // TODO: Use real presentation API to get devices
+   getDeviceList: function() {
+     DEBUG_LOG('# PresentationManager.getDeviceList');
+     var dev1 = new PresentationDevice();
+     dev1.name = 'Firefox OS TV';
+     dev1.castVideoEnabled = true;
+     dev1.castPageEnabled = true;
+     dev1.pinPageEnabled = true;
+
+     var dev2 = new PresentationDevice();
+     dev2.name = 'ChromeCast';
+     dev2.castVideoEnabled = true;
+
+     var dev3 = new PresentationDevice();
+     dev3.name = 'Roku';
+     dev3.castVideoEnabled = true;
+
+     var dev4 = new PresentationDevice();
+     dev4.name = 'Firefox OS TV2';
+     dev4.castVideoEnabled = true;
+     dev4.castPageEnabled = true;
+     dev4.pinPageEnabled = true;
+
+     return [dev1, dev2, dev3, dev4];
+   },
+ };
 
 /*
  * CastingManager
  * ----------------------
  */
-// var CastingManager = {
-//
-// };
-
-function showCastingOptions(win) {
-  win.NativeWindow.toast.show(Strings.GetStringFromName("prompt.sendVideo"), "short");
+function CastingManager(win) {
+  this.pageActionIcon = null;
+  this.pageActionId = null;
 }
 
-function chooseAction(win) {
-  DEBUG_LOG('###### chooseAction');
-  var currentURL = win.BrowserApp.selectedBrowser.currentURI.spec;
+CastingManager.prototype = {
 
-  var items = [
-    // TODO: Only show video option when a video is present.
-    { label: 'Firefox OS TV', header: true },
-    { label: Strings.GetStringFromName("prompt.sendVideo") },
-    { label: Strings.GetStringFromName("prompt.sendURL") },
-    { label: Strings.GetStringFromName("prompt.addURL") },
-    { label: 'ChromeCast', header: true },
-    { label: Strings.GetStringFromName("prompt.sendVideo") },
-  ];
+  init: function(win) {
+    DEBUG_LOG('# CastingManager.init');
+    this.setPageActionIcon(win);
 
-  // See documentation here: https://developer.mozilla.org/en-US/Add-ons/Firefox_for_Android/API/Prompt.jsm
-  // TODO: We might need setMultiChoiceItems in our case
-  var p = new Prompt({
-    title: Strings.GetStringFromName("prompt.title")
-  });
-  p.setSingleChoiceItems(items);
+    let contentLoadedListener = function() {
+      DEBUG_LOG('  >> contentLoadedListener()');
+      this.updatePageAction(win);
+    }.bind(this);
+    win.addEventListener('DOMContentLoaded', contentLoadedListener, false);
+  },
 
-  // TODO: Get real remote control URL.
-  var remoteControlURL = "https://mozilla.org";
-
-  p.show(function(data) {
-    switch (data.button) {
-      case 1:
-        win.alert("TODO: send video from page: " + currentURL);
-        break;
-
-      case 2:
-        win.alert("TODO: send URL from page: " + currentURL);
-        win.BrowserApp.addTab(remoteControlURL);
-        break;
-
-      case 3:
-        win.alert("TODO: add URL to TV home screen: " + currentURL);
-        win.BrowserApp.addTab(remoteControlURL);
-        break;
-
-      case 5:
-        win.alert("TODO: send video from page: " + currentURL);
-        break;
-
-      default:
-        DEBUG_LOG('press btn: ' + data.button);
-        break;
-    }
-  });
-}
-
-function shouldCast(win) {
-  DEBUG_LOG('###### shouldCast');
-  var currentURL = win.BrowserApp.selectedBrowser.currentURI.spec;
-  DEBUG_LOG('url: ' + currentURL);
-  // TODO: Use presentation api to determine this boolean
-  var deviceFounded = currentURL.includes('http://') || currentURL.includes('https://');
-  if (deviceFounded) {
-    return true;
-  }
-  return false;
-}
-
-function addCastingIconToURLBar(win) {
-  DEBUG_LOG('#### addCastingIconToURLBar');
-
-  if (!shouldCast(win)) {
-    DEBUG_LOG('>> no need to cast!');
-
-    if (gPageActionId) {
-      DEBUG_LOG('Remove existing PageActionIcon!');
-      PageActions.remove(gPageActionId);
-      gPageActionId = null;
+  setPageActionIcon: function(win) {
+    DEBUG_LOG('# CastingManager.setPageActionIcon');
+    // pageActionIncon has already been set
+    if (this.pageActionIcon) {
+      return;
     }
 
-    return;
-  }
+    // Using data URIs as a workaround until bug 993698 is fixed.
+    if (win.devicePixelRatio <= 1.5) {
+      DEBUG_LOG('win.devicePixelRatio <= 1.5');
+      this.pageActionIcon = ICON_HDPI;
+    } else if (win.devicePixelRatio <= 2) {
+      DEBUG_LOG('win.devicePixelRatio <= 2');
+      this.pageActionIcon = ICON_XHDPI;
+    } else {
+      DEBUG_LOG('win.devicePixelRatio > 2');
+      this.pageActionIcon = ICON_XXHDPI;
+    }
+  },
 
-  if (gPageActionId) {
-    DEBUG_LOG('PageActionsIcon already exist!');
-    return;
-  }
+  shouldCast: function(win) {
+    DEBUG_LOG('# CastingManager.shouldCast');
+    var currentURL = this.getCurrentURL(win);
+    var validURL = currentURL.includes('http://') || currentURL.includes('https://');
+    // TODO: Use presentation API to define this flag
+    var devicesfound = true;
+    if (validURL && devicesfound) {
+      return true;
+    }
+    return false;
+  },
 
-  // Using data URIs as a workaround until bug 993698 is fixed.
-  if (win.devicePixelRatio <= 1.5) {
-    DEBUG_LOG('win.devicePixelRatio <= 1.5');
-    gPageActionIcon = ICON_HDPI;
-  } else if (win.devicePixelRatio <= 2) {
-    DEBUG_LOG('win.devicePixelRatio <= 2');
-    gPageActionIcon = ICON_XHDPI;
-  } else {
-    DEBUG_LOG('win.devicePixelRatio > 2');
-    gPageActionIcon = ICON_XXHDPI;
-  }
+  updatePageAction: function(win) {
+    DEBUG_LOG('# CastingManager.loadPageAction');
 
-  DEBUG_LOG('show PageActions!');
-  gPageActionId = PageActions.add({
-    icon: gPageActionIcon,
-    title: Strings.GetStringFromName("pageaction.title"),
-    clickCallback: () => chooseAction(win)
-  });
-}
+    if (!this.shouldCast(win)) {
+      DEBUG_LOG('>> no need to cast!');
+
+      if (this.pageActionId) {
+        DEBUG_LOG('Remove existing PageActionIcon!');
+        PageActions.remove(this.pageActionId);
+        this.pageActionId = null;
+      }
+
+      return;
+    }
+
+    DEBUG_LOG('>> prepare to cast!');
+    this.addPageAction(win);
+  },
+
+  addPageAction: function(win) {
+    DEBUG_LOG('# CastingManager.addPageAction');
+
+    if (this.pageActionId) {
+      DEBUG_LOG('PageActionsIcon already exist!');
+      return;
+    }
+
+    DEBUG_LOG('>> show PageActions!');
+    this.pageActionId = PageActions.add({
+      icon: this.pageActionIcon,
+      title: Strings.GetStringFromName("pageaction.title"),
+      clickCallback: () => this.chooseAction(win)
+    });
+  },
+
+  chooseAction: function(win) {
+    DEBUG_LOG('# CastingManager.chooseAction');
+    var promptInfo = this.promptInfoGenerator(win);
+
+    var p = new Prompt({
+      title: Strings.GetStringFromName("prompt.title")
+    });
+    p.setSingleChoiceItems(promptInfo.menu);
+
+    p.show(function(data) {
+      DEBUG_LOG('  >> press button: ' + data.button);
+      // Fire callbacks with corresponding target device
+      promptInfo.callbacks[data.button](promptInfo.targets[data.button]);
+    });
+  },
+
+  promptInfoGenerator: function(win) {
+    DEBUG_LOG('# CastingManager.promptInfoGenerator');
+
+    // Prompt menu
+    var menu = [];
+
+    // Callbacks for clicking menu
+    var sendVideo = function(target) { this.castVideo(win, target); }.bind(this);
+    var sendPage = function(target) { this.castWebpage(win, target); }.bind(this);
+    var pinPage = function(target) { this.pinWebpageToHome(win, target); }.bind(this);
+    // var callbacks = [];
+    var callbacks = {};
+
+    // target device for callbacks
+    // var targetDevices = [];
+    var targetDevices = {};
+
+    // Load devices information into prompt munu and set its callbacks
+    var devices = PresentationManager.getDeviceList();
+    // TODO: The properties in devies may be changed after using real presentation API
+
+    var key = 0;
+    for (var i in devices) {
+      // Assume every device has valid name
+      menu.push({ label: devices[i].name, header: true });
+      // callbacks.push(null);
+      // targetDevices.push(null);
+      ++key;
+
+      if (devices[i].castVideoEnabled) {
+        menu.push({ label: Strings.GetStringFromName("prompt.sendVideo") });
+        // callbacks.push(sendVideo);
+        // targetDevices.push(devices[i]);
+        callbacks[key] = sendVideo;
+        targetDevices[key] = devices[i];
+        ++key;
+      }
+
+      if (devices[i].castPageEnabled) {
+        menu.push({ label: Strings.GetStringFromName("prompt.sendURL") });
+        // callbacks.push(sendPage);
+        // targetDevices.push(devices[i]);
+        callbacks[key] = sendPage;
+        targetDevices[key] = devices[i];
+        ++key;
+      }
+
+      if (devices[i].pinPageEnabled) {
+        menu.push({ label: Strings.GetStringFromName("prompt.addURL") });
+        // callbacks.push(pinPage);
+        // targetDevices.push(devices[i]);
+        callbacks[key] = pinPage;
+        targetDevices[key] = devices[i];
+        ++key;
+      }
+    }
+
+    return { menu: menu, callbacks: callbacks, targets:targetDevices };
+  },
+
+  getCurrentURL: function(win) {
+    DEBUG_LOG('# CastingManager.getCurrentURL');
+    return win.BrowserApp.selectedBrowser.currentURI.spec;
+  },
+
+  castVideo: function(win, target) {
+    DEBUG_LOG('# CastingManager.castVideo');
+    DEBUG_LOG(target);
+    var currentURL = this.getCurrentURL(win);
+    win.alert('TODO: Cast video from page: ' + currentURL);
+  },
+
+  castWebpage: function(win, target) {
+    DEBUG_LOG('# CastingManager.castWebpage');
+    DEBUG_LOG(target);
+    var currentURL = this.getCurrentURL(win);
+    win.alert('TODO: Cast webpage from page: ' + currentURL);
+  },
+
+  pinWebpageToHome: function(win, target) {
+    DEBUG_LOG('# CastingManager.pinWebpageToHome');
+    DEBUG_LOG(target);
+    var currentURL = this.getCurrentURL(win);
+    win.alert('TODO: Pin webpage from page: ' + currentURL);
+  },
+};
 
 
 
@@ -189,18 +295,13 @@ function addCastingIconToURLBar(win) {
  */
 function loadIntoWindow(window) {
   DEBUG_LOG('## loadIntoWindow');
-  gCastingMenuId = window.NativeWindow.menu.add("Cast", null, function() { showCastingOptions(window); });
-  let contentLoadedListener = function() {
-    DEBUG_LOG('  >> contentLoadedListener()');
-    addCastingIconToURLBar(window);
-  };
-  window.addEventListener("DOMContentLoaded", contentLoadedListener, false);
+  castingMgr = new CastingManager();
+  castingMgr.init(window);
 }
 
 function unloadFromWindow(window) {
   DEBUG_LOG('## unloadFromWindow');
-  window.NativeWindow.menu.remove(gCastingMenuId);
-  PageActions.remove(gPageActionId);
+  PageActions.remove(castingMgr.pageActionId);
 }
 
 
