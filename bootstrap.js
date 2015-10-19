@@ -62,18 +62,16 @@ function DEBUG_LOG(msg) {
  * Presentation API
  * ----------------------
  */
-// function Presentation() {
-// }
-// Presentation.prototype.init = function() {
-// };
+ // var PresentationManager = {
+ //
+ // };
 
 /*
  * CastingManager
  * ----------------------
  */
-// function CastingManager() {
-// }
-// CastingManager.prototype.init = function() {
+// var CastingManager = {
+//
 // };
 
 function showCastingOptions(win) {
@@ -86,9 +84,12 @@ function chooseAction(win) {
 
   var items = [
     // TODO: Only show video option when a video is present.
+    { label: 'Firefox OS TV', header: true },
     { label: Strings.GetStringFromName("prompt.sendVideo") },
     { label: Strings.GetStringFromName("prompt.sendURL") },
     { label: Strings.GetStringFromName("prompt.addURL") },
+    { label: 'ChromeCast', header: true },
+    { label: Strings.GetStringFromName("prompt.sendVideo") },
   ];
 
   // See documentation here: https://developer.mozilla.org/en-US/Add-ons/Firefox_for_Android/API/Prompt.jsm
@@ -103,18 +104,26 @@ function chooseAction(win) {
 
   p.show(function(data) {
     switch (data.button) {
-      case 0:
+      case 1:
         win.alert("TODO: send video from page: " + currentURL);
         break;
 
-      case 1:
+      case 2:
         win.alert("TODO: send URL from page: " + currentURL);
         win.BrowserApp.addTab(remoteControlURL);
         break;
 
-      case 2:
+      case 3:
         win.alert("TODO: add URL to TV home screen: " + currentURL);
         win.BrowserApp.addTab(remoteControlURL);
+        break;
+
+      case 5:
+        win.alert("TODO: send video from page: " + currentURL);
+        break;
+
+      default:
+        DEBUG_LOG('press btn: ' + data.button);
         break;
     }
   });
@@ -123,8 +132,9 @@ function chooseAction(win) {
 function shouldCast(win) {
   DEBUG_LOG('###### shouldCast');
   var currentURL = win.BrowserApp.selectedBrowser.currentURI.spec;
+  DEBUG_LOG('url: ' + currentURL);
   // TODO: Use presentation api to determine this boolean
-  var deviceFounded = currentURL.includes('youtube.com');
+  var deviceFounded = currentURL.includes('http://') || currentURL.includes('https://');
   if (deviceFounded) {
     return true;
   }
