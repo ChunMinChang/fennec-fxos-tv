@@ -14,7 +14,7 @@ const ICON_XXHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADYAAAAtCAYAA
  * Global Variables
  * ==================================
  */
-var castingMgr = new CastingManager();
+var castingMgrList = {};
 
 /*
  * XPCOM modules
@@ -45,6 +45,10 @@ XPCOMUtils.defineLazyGetter(this, "Helper", function() {
  */
 function DEBUG_LOG(msg) {
   console.log(msg);
+}
+
+function GET_UNIQUE_ID() {
+  return Date.now();
 }
 
 
@@ -209,7 +213,7 @@ CastingManager.prototype = {
     // Callbacks for clicking menu
     var sendVideo = function(target) { this.castVideo(win, target); }.bind(this);
     var sendPage = function(target) { this.castWebpage(win, target); }.bind(this);
-    var pinPage = function(target) { this.pinWebpageToHome(win, target); }.bind(this);
+    var pinPage = function(target) { this.pinWebpageToHomescreen(win, target); }.bind(this);
     // var callbacks = [];
     var callbacks = {};
 
@@ -279,8 +283,8 @@ CastingManager.prototype = {
     win.alert('TODO: Cast webpage from page: ' + currentURL);
   },
 
-  pinWebpageToHome: function(win, target) {
-    DEBUG_LOG('# CastingManager.pinWebpageToHome');
+  pinWebpageToHomescreen: function(win, target) {
+    DEBUG_LOG('# CastingManager.pinWebpageToHomescreen');
     DEBUG_LOG(target);
     var currentURL = this.getCurrentURL(win);
     win.alert('TODO: Pin webpage from page: ' + currentURL);
@@ -294,14 +298,26 @@ CastingManager.prototype = {
  * ==================================
  */
 function loadIntoWindow(window) {
-  DEBUG_LOG('## loadIntoWindow');
-  castingMgr = new CastingManager();
+  DEBUG_LOG('## loadIntoWindow: ');
+  // Set an unique id to window
+  window.name = GET_UNIQUE_ID();
+  DEBUG_LOG('  >> window.name: ' + window.name);
+  var castingMgr = new CastingManager();
   castingMgr.init(window);
+  // Add this CastingManager to array that
+  // contains all pairs of window and CastingManager
+  castingMgrList[window.name] = castingMgr;
 }
 
 function unloadFromWindow(window) {
   DEBUG_LOG('## unloadFromWindow');
-  PageActions.remove(castingMgr.pageActionId);
+
+  // Remove pageAction from each window
+  for (var winName in castingMgrList) {
+    var castingMgr = castingMgrList[winName];
+    DEBUG_LOG('  >> window.name: ' + winName + ', CastingManager: ' + castingMgr);
+    PageActions.remove(castingMgr.pageActionId);
+  }
 }
 
 
