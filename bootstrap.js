@@ -14,7 +14,8 @@ const ICON_XXHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADYAAAAtCAYAA
  * Global Variables
  * ==================================
  */
-var castingMgrList = {};
+var CastingMgrList = {};
+var PresDevMgrList = {};
 
 /*
  * XPCOM modules
@@ -24,6 +25,8 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/PageActions.jsm");
 Cu.import("resource://gre/modules/Prompt.jsm");
+Cu.import('resource://gre/modules/PresentationDeviceInfoManager.jsm');
+
 
 // An example of how to create a string bundle for localization.
 XPCOMUtils.defineLazyGetter(this, "Strings", function() {
@@ -51,7 +54,64 @@ function GET_UNIQUE_ID() {
   return Date.now();
 }
 
+// function checkPermission(win, type) {
+//   DEBUG_LOG('# checkPermission: ' + type);
+//   DEBUG_LOG(win);
+//   DEBUG_LOG(win.document);
+//   let principal = win.document.nodePrincipal;
+//   DEBUG_LOG(principal);
+//   var hasPerm = Services.perms.testPermissionFromPrincipal(principal, type);
+//   DEBUG_LOG('  hasPerm >> ' + hasPerm);
+//   return hasPerm;
+// }
 
+function unloadPresentationDeviceManagerAndCastingManagerFromWindow(win) {
+  DEBUG_LOG('# unloadPresentationDeviceManagerAndCastingManagerFromWindow(');
+  if (PresDevMgrList.hasOwnProperty(win.name)) {
+    DEBUG_LOG('  >> delete PresDevMgr');
+    delete PresDevMgrList[win.name];
+  }
+
+  if (CastingMgrList.hasOwnProperty(win.name)) {
+    DEBUG_LOG('  >> delete CastingMgr');
+    // Remove pageAction from this window
+    PageActions.remove(CastingMgrList[win.name].pageActionId);
+
+    // then delete the CastingManager
+    delete CastingMgrList[win.name];
+  }
+}
+
+function initCastingManagerForWindow(win) {
+  DEBUG_LOG('# initCastingManagerForWindow');
+  // If CastingManager for this window alreay exist, then do nothing
+  if (CastingMgrList[win.name]) {
+    DEBUG_LOG('  >> CastingManager for this window alreay exist!');
+    return;
+  }
+
+  var castingMgr = new CastingManager();
+  castingMgr.init(win);
+
+  // Add this CastingManager to array that
+  // contains all pairs of window and CastingManager
+  CastingMgrList[win.name] = castingMgr;
+}
+
+function initPresentationDeviceManagerForWindow(win) {
+  DEBUG_LOG('# initPresentationDeviceManagerForWindow');
+  // If CastingManager for this window alreay exist, then do nothing
+  if (PresDevMgrList[win.name]) {
+    DEBUG_LOG('  >> PresentationDeviceManager for this window alreay exist!');
+    return;
+  }
+
+  var presDevMgr = new PresentationDeviceManager();
+  presDevMgr.init(win);
+  // Add this PresentationDeviceManager to array that
+  // contains all pairs of window and PresentationDeviceManager
+  PresDevMgrList[win.name] = presDevMgr;
+}
 
 /*
  * Core Functions
@@ -62,63 +122,178 @@ function GET_UNIQUE_ID() {
  * Presentation API
  * ----------------------
  */
-function PresentationDevice() {
-  this.id = null;
-  this.name = null;
-  this.type = null;
-  this.castVideoEnabled = false;
-  this.castPageEnabled = false;
-  this.pinPageEnabled = false;
+function PresentationDeviceInfo(device) {
+  this.id = device.id;
+  this.name = device.name;
+  this.type = device.type;
+  this.castVideoEnabled = true;
+  this.castPageEnabled = true;
+  this.pinPageEnabled = true;
 }
 
- var PresentationManager = {
-   // TODO: Use real presentation API to get devices
-   getDeviceList: function() {
-     DEBUG_LOG('# PresentationManager.getDeviceList');
-     var dev1 = new PresentationDevice();
-     dev1.name = 'Firefox OS TV';
-     dev1.castVideoEnabled = true;
-     dev1.castPageEnabled = true;
-     dev1.pinPageEnabled = true;
+function PresentationDeviceManager() {}
 
-     var dev2 = new PresentationDevice();
-     dev2.name = 'ChromeCast';
-     dev2.castVideoEnabled = true;
+PresentationDeviceManager.prototype = {
+  deviceList: [],
 
-     var dev3 = new PresentationDevice();
-     dev3.name = 'Roku';
-     dev3.castVideoEnabled = true;
+  init: function(win) {
+    DEBUG_LOG('# PresentationDeviceManager.init');
 
-     var dev4 = new PresentationDevice();
-     dev4.name = 'Firefox OS TV2';
-     dev4.castVideoEnabled = true;
-     dev4.castPageEnabled = true;
-     dev4.pinPageEnabled = true;
+    if (!win.navigator.mozPresentationDeviceInfo) {
+      DEBUG_LOG('  >> You need to open the preference of Presentation!');
+      return;
+    }
 
-     return [dev1, dev2, dev3, dev4];
-   },
- };
+    // Get available devices
+    win.navigator.mozPresentationDeviceInfo.getAll()
+    .then(function(devices) {
+      DEBUG_LOG('-*- mozPresentationDeviceInfo.getAll() >> successfully!');
+
+      if (devices === undefined || !devices.length) {
+        DEBUG_LOG('  >> no device!');
+        return;
+      }
+
+      // Add these devices into list
+      this.appendDevicesIntoList(devices);
+
+      // Initialize CastingManager for this window
+      initCastingManagerForWindow(win);
+
+      // Show icon in URL bar
+      CastingMgrList[win.name].updatePageAction(win);
+
+    }.bind(this), function(error) {
+      DEBUG_LOG('-*- mozPresentationDeviceInfo.getAll() >> fail!');
+      DEBUG_LOG(error);
+    });
+
+    // Use event listener to update deviceList
+    win.navigator.mozPresentationDeviceInfo.addEventListener('devicechange',
+    function deviceChangeHandler(evt) {
+      let detail = evt.detail;
+      DEBUG_LOG('-*- devicechange: ' + detail.type);
+      DEBUG_LOG(detail.deviceInfo);
+      this.updateDeviceList(/*win, */detail.type, detail.deviceInfo);
+    }.bind(this));
+  },
+
+  updateDeviceList: function(/*win, */type, dev) {
+    DEBUG_LOG('# PresentationDeviceManager.updateDeviceList');
+    DEBUG_LOG(dev);
+    switch(type) {
+      case 'add':
+        this.addDeviceToList(dev);
+        break;
+
+      case 'update':
+        this.updateDeviceInList(dev);
+        break;
+
+      case 'remove':
+        this.removeDeviceFromList(dev);
+        break;
+
+      default:
+        DEBUG_LOG('!!!!! Unexpected error: No type !!!!!');
+        break;
+    }
+  },
+
+  appendDevicesIntoList: function(devices) {
+    DEBUG_LOG('# PresentationDeviceManager.appendDevicesIntoList');
+    this.deviceList = this.deviceList.concat(devices.map(function(dev) {
+      var presDevInfo = new PresentationDeviceInfo(dev);
+      return presDevInfo;
+    }));
+  },
+
+  addDeviceToList: function(dev) {
+    DEBUG_LOG('# PresentationDeviceManager.addDeviceToList');
+
+    var devFound = this.deviceList.find(function(d) {
+      return d.id == dev.id;
+    });
+
+    if (devFound) {
+      DEBUG_LOG('  >> device alreadt exist!');
+      return;
+    }
+
+    this.deviceList.push(new PresentationDeviceInfo(dev));
+
+    // If it's first device, then
+    if (this.deviceList.length == 1) {
+      DEBUG_LOG('  >> it\'s first device!');
+      // Initialize CastingManager for this window
+      // initCastingManagerForWindow(win);
+      // Add icon to URL bar
+      // CastingMgrList[win.name].updatePageAction(win);
+    }
+  },
+
+  updateDeviceInList: function(dev) {
+    DEBUG_LOG('# PresentationDeviceManager.updateDeviceInList');
+    var devFound = this.deviceList.find(function(d) {
+      return d.id == dev.id;
+    });
+    if (!devFound) {
+      DEBUG_LOG('  !!!!! Error: Can\'t find device !!!!!');
+    }
+    devFound = dev;
+  },
+
+  removeDeviceFromList: function(dev) {
+    DEBUG_LOG('# PresentationDeviceManager.removeDeviceFromList');
+
+    // Create a new list without the removed one
+    this.deviceList = this.deviceList.filter(function(d) {
+      return d.id != dev.id;
+    });
+
+    // If device list is empty now, then
+    if (!this.deviceList.length) {
+      DEBUG_LOG('  >> device is empty now');
+
+      // Remove icon from URL bar
+      // CastingMgrList[win.name].updatePageAction(win);
+
+      // Remove the CastingManager from this window
+    }
+  },
+};
 
 /*
  * CastingManager
  * ----------------------
  */
-function CastingManager(win) {
-  this.pageActionIcon = null;
-  this.pageActionId = null;
-}
+function CastingManager() {}
 
 CastingManager.prototype = {
+  pageActionIcon: null,
+  pageActionId: null,
 
   init: function(win) {
     DEBUG_LOG('# CastingManager.init');
     this.setPageActionIcon(win);
 
-    let contentLoadedListener = function() {
-      DEBUG_LOG('  >> contentLoadedListener()');
+    let refreshPageActionIcon = function() {
+      DEBUG_LOG('  >> refreshPageActionIcon()');
       this.updatePageAction(win);
     }.bind(this);
-    win.addEventListener('DOMContentLoaded', contentLoadedListener, false);
+
+    // Reload pageActionIcon in URL bar after page has been loaded
+    win.addEventListener('DOMContentLoaded', function() {
+      DEBUG_LOG('  >> DOMContentLoaded!!');
+      refreshPageActionIcon();
+    }, false);
+
+    // Reload pageActionIcon after tab has been switched
+    // TODO: visibilitychange is also fired before tab is switching, it's annoyed
+    win.addEventListener('visibilitychange', function() {
+      DEBUG_LOG('  >> visibilitychange!!');
+      refreshPageActionIcon();
+    }, false);
   },
 
   setPageActionIcon: function(win) {
@@ -145,12 +320,10 @@ CastingManager.prototype = {
     DEBUG_LOG('# CastingManager.shouldCast');
     var currentURL = this.getCurrentURL(win);
     var validURL = currentURL.includes('http://') || currentURL.includes('https://');
-    // TODO: Use presentation API to define this flag
-    var devicesfound = true;
-    if (validURL && devicesfound) {
-      return true;
-    }
-    return false;
+    DEBUG_LOG('  >> validURL: ' + validURL);
+    var devicesFound = PresDevMgrList[win.name] && (PresDevMgrList[win.name].deviceList.length > 0);
+    DEBUG_LOG('  >> devicesFound: ' + devicesFound);
+    return validURL && devicesFound;
   },
 
   updatePageAction: function(win) {
@@ -214,29 +387,23 @@ CastingManager.prototype = {
     var sendVideo = function(target) { this.castVideo(win, target); }.bind(this);
     var sendPage = function(target) { this.castWebpage(win, target); }.bind(this);
     var pinPage = function(target) { this.pinWebpageToHomescreen(win, target); }.bind(this);
-    // var callbacks = [];
     var callbacks = {};
 
     // target device for callbacks
-    // var targetDevices = [];
     var targetDevices = {};
 
     // Load devices information into prompt munu and set its callbacks
-    var devices = PresentationManager.getDeviceList();
+    var devices = PresDevMgrList[win.name].deviceList;
     // TODO: The properties in devies may be changed after using real presentation API
 
     var key = 0;
     for (var i in devices) {
       // Assume every device has valid name
       menu.push({ label: devices[i].name, header: true });
-      // callbacks.push(null);
-      // targetDevices.push(null);
       ++key;
 
       if (devices[i].castVideoEnabled) {
         menu.push({ label: Strings.GetStringFromName("prompt.sendVideo") });
-        // callbacks.push(sendVideo);
-        // targetDevices.push(devices[i]);
         callbacks[key] = sendVideo;
         targetDevices[key] = devices[i];
         ++key;
@@ -244,8 +411,6 @@ CastingManager.prototype = {
 
       if (devices[i].castPageEnabled) {
         menu.push({ label: Strings.GetStringFromName("prompt.sendURL") });
-        // callbacks.push(sendPage);
-        // targetDevices.push(devices[i]);
         callbacks[key] = sendPage;
         targetDevices[key] = devices[i];
         ++key;
@@ -253,8 +418,6 @@ CastingManager.prototype = {
 
       if (devices[i].pinPageEnabled) {
         menu.push({ label: Strings.GetStringFromName("prompt.addURL") });
-        // callbacks.push(pinPage);
-        // targetDevices.push(devices[i]);
         callbacks[key] = pinPage;
         targetDevices[key] = devices[i];
         ++key;
@@ -298,26 +461,16 @@ CastingManager.prototype = {
  * ==================================
  */
 function loadIntoWindow(window) {
-  DEBUG_LOG('## loadIntoWindow: ');
+  DEBUG_LOG('### loadIntoWindow: ');
   // Set an unique id to window
   window.name = GET_UNIQUE_ID();
   DEBUG_LOG('  >> window.name: ' + window.name);
-  var castingMgr = new CastingManager();
-  castingMgr.init(window);
-  // Add this CastingManager to array that
-  // contains all pairs of window and CastingManager
-  castingMgrList[window.name] = castingMgr;
+  initPresentationDeviceManagerForWindow(window);
 }
 
 function unloadFromWindow(window) {
-  DEBUG_LOG('## unloadFromWindow');
-
-  // Remove pageAction from each window
-  for (var winName in castingMgrList) {
-    var castingMgr = castingMgrList[winName];
-    DEBUG_LOG('  >> window.name: ' + winName + ', CastingManager: ' + castingMgr);
-    PageActions.remove(castingMgr.pageActionId);
-  }
+  DEBUG_LOG('### unloadFromWindow');
+  unloadPresentationDeviceManagerAndCastingManagerFromWindow(window);
 }
 
 
