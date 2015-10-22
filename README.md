@@ -11,6 +11,5 @@ A simple fennec add-on for Firefox OS smart TV. This project is based on [leibov
 You need to set _dom.presentation.enabled_ to _true_ through ```about:config```
 
 ## TODO:
-- Show casting-icon only when devices that support presentation API were found.
-  - Test 'devicechange' part
-- Change the cast-list dynamically by webpage content
+- Change the service-list dynamically by webpage content and devices' services
+- Add a small icon to video tag when there is compatible device nearby

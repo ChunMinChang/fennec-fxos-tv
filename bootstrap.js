@@ -17,6 +17,8 @@ const ICON_XXHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADYAAAAtCAYAA
 var CastingMgrList = {};
 var PresDevMgrList = {};
 
+var DiscoveryMenuId = null;
+
 /*
  * XPCOM modules
  * ==================================
@@ -52,6 +54,40 @@ function DEBUG_LOG(msg) {
 
 function GET_UNIQUE_ID() {
   return Date.now();
+}
+
+function discoveryDevices(win) {
+  DEBUG_LOG('# discoveryDevices');
+  win.navigator.mozPresentationDeviceInfo.getAll()
+  .then(function(devices) {
+    DEBUG_LOG('-*- discoveryDevices >> mozPresentationDeviceInfo.getAll() >> successfully!');
+
+    if (devices === undefined || !devices.length) {
+      DEBUG_LOG('  >> no device!');
+      return;
+    }
+
+    DEBUG_LOG('  >> we get: ');
+    for (var i in devices) {
+      DEBUG_LOG(devices[i]);
+    }
+
+    if (!PresDevMgrList[win.name]) {
+      DEBUG_LOG('  >> no PresentationDeviceManager for this window!');
+      return;
+    }
+
+    PresDevMgrList[win.name].deviceList = devices.map(function(dev) {
+      var presDevInfo = new PresentationDeviceInfo(dev);
+      return presDevInfo;
+    });
+
+  }, function(error) {
+    DEBUG_LOG('-*- discoveryDevices >> mozPresentationDeviceInfo.getAll() >> fail!');
+    DEBUG_LOG(error);
+  });
+
+  win.NativeWindow.toast.show('Discovery presentaion devices', "short");
 }
 
 // function checkPermission(win, type) {
@@ -154,10 +190,15 @@ PresentationDeviceManager.prototype = {
         return;
       }
 
+      DEBUG_LOG('  >> we get: ');
+      for (var i in devices) {
+        DEBUG_LOG(devices[i]);
+      }
+
       // Add these devices into list
       this.appendDevicesIntoList(devices);
 
-      // Initialize CastingManager for this window
+      // Initialize CastingManager for this window if it doesn't exist
       initCastingManagerForWindow(win);
 
       // Show icon in URL bar
@@ -173,17 +214,16 @@ PresentationDeviceManager.prototype = {
     function deviceChangeHandler(evt) {
       let detail = evt.detail;
       DEBUG_LOG('-*- devicechange: ' + detail.type);
-      DEBUG_LOG(detail.deviceInfo);
-      this.updateDeviceList(/*win, */detail.type, detail.deviceInfo);
+      this.updateDeviceList(win, detail.type, detail.deviceInfo);
     }.bind(this));
   },
 
-  updateDeviceList: function(/*win, */type, dev) {
-    DEBUG_LOG('# PresentationDeviceManager.updateDeviceList');
+  updateDeviceList: function(win, type, dev) {
+    DEBUG_LOG('# PresentationDeviceManager.updateDeviceList: ' + type);
     DEBUG_LOG(dev);
     switch(type) {
       case 'add':
-        this.addDeviceToList(dev);
+        this.addDeviceToList(win, dev);
         break;
 
       case 'update':
@@ -195,7 +235,7 @@ PresentationDeviceManager.prototype = {
         break;
 
       default:
-        DEBUG_LOG('!!!!! Unexpected error: No type !!!!!');
+        DEBUG_LOG('!!!!! Unexpected error: No corresponding action for ' + type);
         break;
     }
   },
@@ -208,7 +248,7 @@ PresentationDeviceManager.prototype = {
     }));
   },
 
-  addDeviceToList: function(dev) {
+  addDeviceToList: function(win, dev) {
     DEBUG_LOG('# PresentationDeviceManager.addDeviceToList');
 
     var devFound = this.deviceList.find(function(d) {
@@ -225,10 +265,10 @@ PresentationDeviceManager.prototype = {
     // If it's first device, then
     if (this.deviceList.length == 1) {
       DEBUG_LOG('  >> it\'s first device!');
-      // Initialize CastingManager for this window
-      // initCastingManagerForWindow(win);
+      // Initialize CastingManager for this window if it doesn't exist
+      initCastingManagerForWindow(win);
       // Add icon to URL bar
-      // CastingMgrList[win.name].updatePageAction(win);
+      CastingMgrList[win.name].updatePageAction(win);
     }
   },
 
@@ -373,7 +413,17 @@ CastingManager.prototype = {
     p.show(function(data) {
       DEBUG_LOG('  >> press button: ' + data.button);
       // Fire callbacks with corresponding target device
-      promptInfo.callbacks[data.button](promptInfo.targets[data.button]);
+      // promptInfo.callbacks[data.button](promptInfo.targets[data.button]);
+
+      // This condition is for demo!
+      if (!promptInfo.callbacks[data.button]) {
+        DEBUG_LOG('  >> no callbak for this button!');
+        return;
+      }
+
+      if (promptInfo.callbacks[data.button]) {
+        promptInfo.callbacks[data.button](promptInfo.targets[data.button]);
+      }
     });
   },
 
@@ -466,11 +516,19 @@ function loadIntoWindow(window) {
   window.name = GET_UNIQUE_ID();
   DEBUG_LOG('  >> window.name: ' + window.name);
   initPresentationDeviceManagerForWindow(window);
+
+  // Add a force-discovery into menu
+  DiscoveryMenuId = window.NativeWindow.menu.add("Discovery Devices", null, function() { discoveryDevices(window); });
 }
 
 function unloadFromWindow(window) {
   DEBUG_LOG('### unloadFromWindow');
   unloadPresentationDeviceManagerAndCastingManagerFromWindow(window);
+
+  // Remove the force-discovery from menu
+  if (DiscoveryMenuId) {
+    window.NativeWindow.menu.remove(DiscoveryMenuId);
+  }
 }
 
 
