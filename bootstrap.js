@@ -231,7 +231,7 @@ PresentationDeviceManager.prototype = {
         break;
 
       case 'remove':
-        this.removeDeviceFromList(dev);
+        this.removeDeviceFromList(win, dev);
         break;
 
       default:
@@ -283,7 +283,7 @@ PresentationDeviceManager.prototype = {
     devFound = dev;
   },
 
-  removeDeviceFromList: function(dev) {
+  removeDeviceFromList: function(win, dev) {
     DEBUG_LOG('# PresentationDeviceManager.removeDeviceFromList');
 
     // Create a new list without the removed one
@@ -296,7 +296,7 @@ PresentationDeviceManager.prototype = {
       DEBUG_LOG('  >> device is empty now');
 
       // Remove icon from URL bar
-      // CastingMgrList[win.name].updatePageAction(win);
+      CastingMgrList[win.name].updatePageAction(win);
 
       // Remove the CastingManager from this window
     }
@@ -486,21 +486,21 @@ CastingManager.prototype = {
     DEBUG_LOG('# CastingManager.castVideo');
     DEBUG_LOG(target);
     var currentURL = this.getCurrentURL(win);
-    win.alert('TODO: Cast video from page: ' + currentURL);
+    win.alert('TODO: Cast video from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
   },
 
   castWebpage: function(win, target) {
     DEBUG_LOG('# CastingManager.castWebpage');
     DEBUG_LOG(target);
     var currentURL = this.getCurrentURL(win);
-    win.alert('TODO: Cast webpage from page: ' + currentURL);
+    win.alert('TODO: Cast webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
   },
 
   pinWebpageToHomescreen: function(win, target) {
     DEBUG_LOG('# CastingManager.pinWebpageToHomescreen');
     DEBUG_LOG(target);
     var currentURL = this.getCurrentURL(win);
-    win.alert('TODO: Pin webpage from page: ' + currentURL);
+    win.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
   },
 };
 
