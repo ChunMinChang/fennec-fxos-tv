@@ -8,7 +8,8 @@ A simple fennec add-on for Firefox OS smart TV. This project is based on [leibov
 ./remove_files
 
 ## How to use
-You need to set _dom.presentation.enabled_ to _true_ through ```about:config```
+- You need to set _dom.presentation.enabled_ to _true_ through ```about:config```
+- Remember to modify the target device to yours in _build_ script.
 
 ## TODO:
 - Change the service-list dynamically by webpage content and devices' services
