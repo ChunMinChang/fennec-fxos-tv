@@ -9,8 +9,11 @@ A simple fennec add-on for Firefox OS smart TV. This project is based on [leibov
 
 ## How to use
 - You need to set _dom.presentation.enabled_ to _true_ through ```about:config```
-- Remember to modify the target device to yours in _build_ script.
+- Remember to modify the target device(e.g., _ANDROID_APP_ID_) to yours in _build_ script.
 
 ## TODO:
-- Change the service-list dynamically by webpage content and devices' services
-- Add a small icon to video tag when there is compatible device nearby
+- bootstrap.js
+  - Need to change coding style: global variables may need add a prefix _g_
+  - Change the service-list dynamically by webpage content and devices' services
+    - Presentation API now can't know what services the devices provide before building connection
+  - Add a small icon to video tag when there is compatible device nearby
