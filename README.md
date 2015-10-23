@@ -16,4 +16,6 @@ A simple fennec add-on for Firefox OS smart TV. This project is based on [leibov
   - Need to change coding style: global variables may need add a prefix _g_
   - Change the service-list dynamically by webpage content and devices' services
     - Presentation API now can't know what services the devices provide before building connection
+    - Survey how to show submenu in prompt.js
   - Add a small icon to video tag when there is compatible device nearby
+  - Refactor: Avoid memory leak(e.g., circular reference)
