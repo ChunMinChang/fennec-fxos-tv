@@ -19,3 +19,6 @@ A simple fennec add-on for Firefox OS smart TV. This project is based on [leibov
     - Survey how to show submenu in prompt.js
   - Add a small icon to video tag when there is compatible device nearby
   - Refactor: Avoid memory leak(e.g., circular reference)
+    - circular reference
+      - PresentationDeviceManager and window
+      - CastingManager and window
