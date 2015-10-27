@@ -10,14 +10,15 @@ const ICON_HDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAWCAYAAAA
 const ICON_XHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAeCAYAAABE4bxTAAAAAXNSR0IArs4c6QAAAUtJREFUWAntl7tKxEAUhs85SWFjsz6Bha0KYuEFLCx8g1ia9QKSp8gj2CyKi5dtfQ8RFcQV7CwstPNSWiXHfxZcdiHkCMKOCzMQksxP5nz5MgMTTveyeSrLcyWaJSLG4aMpCj+QSCqkegaYOVD4gnECuMcAFlFVB/MvmmOJQdI30zk56l+PknBrZx+Ceo1llIV/UysAWZaCoWDIMmDlYQ4FQ5YBKw9zKBiyDFh5mENjZ4ixfSxB7WXrWmFLhZm7FYGXLsciUazb0OOgfjbaPmDcf1mXmJs+io9XTXMyN3ezzVK1hS869bdX4/dIJDttty7qxonqQpfd390+Li6sdJT1C/Qz6Jq0nhnKmV5F+GAi1rR9fHgzlFXcmIYGn8nzPH5+eVslKpaxApaQTcNcg4kbOBfo+8CAnzg/YcVcw8jVxvraZZIkxeA4ddff5klO7Te5Hm4AAAAASUVORK5CYII=";
 const ICON_XXHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADYAAAAtCAYAAADlVJiFAAAAAXNSR0IArs4c6QAAAf1JREFUaAXtms1KQkEUx88ZfYCgwha1CVr0AbWolvkEPUGFiB+oiyCC3Lp1FYSUaCYSPUPr3AUREaQEtWrjQl8guvd0pkVIKc29QpxbMyDemXvmzP+c34wDziBwiaVyW0hunggWuBrSbQEsDiK0CFWxUT2+wHgyu+0SnQcwkKGSFeKOcgnyQy0C+oKADhQAzQdU/1DZeklxYIFdU0MD0zGFB71t1Mo4qF1qWyyRoa/aNLE/WWxgQcNqiVliQjJgp6IQEMYyLDHjVAkxtMSEgDCWYYkZp0qIoSUmBISxDEvMOFVCDC0xISCMZVhixqkSYmiJCQFhLMMSM06VEEMc9PewEG0jydBT0RnJg8zODgeGbZna/KvSJ5tKIRT9u5DZUx/Xhu5ub+5XVtefEGiOZU7wJ6i/lPoM+gGU2tdn0DJTblX9wwx4PpKNJTO7CHhIRL+yFhGRLzbQXuO0fOSFj+fAtPN4KhslF854wFkvg3m2RXjmOxuJevXkymtfX1n/GGgmsqhAZZjeo9dBf7RHbKNSaZyeWvITlPbvi1i/MJ6SmEjnNh0XEuxsgymO9b83fkbocpKavNvU6tXSJU/BbzcBjH2x4ciB9Q9WKBTUS6ez7LxhlNvXgCjC37w34iSPNM71V673WHGXhff4ucP753UYQ81KpdQaNRj291neAeiAdCFRHoGDAAAAAElFTkSuQmCC";
 
+
+
 /*
  * Global Variables
  * ==================================
  */
-var CastingMgrList = {};
-var PresDevMgrList = {};
+var gDiscoveryMenuId = null;
 
-var DiscoveryMenuId = null;
+
 
 /*
  * XPCOM modules
@@ -56,6 +57,8 @@ function GET_UNIQUE_ID() {
   return Date.now();
 }
 
+// For Debug
+// ----------------------
 function discoveryDevices(win) {
   DEBUG_LOG('# discoveryDevices');
   win.navigator.mozPresentationDeviceInfo.getAll()
@@ -72,15 +75,8 @@ function discoveryDevices(win) {
       DEBUG_LOG(devices[i]);
     }
 
-    if (!PresDevMgrList[win.name]) {
-      DEBUG_LOG('  >> no PresentationDeviceManager for this window!');
-      return;
-    }
-
-    PresDevMgrList[win.name].deviceList = devices.map(function(dev) {
-      var presDevInfo = new PresentationDeviceInfo(dev);
-      return presDevInfo;
-    });
+    PresentationDevices.setList(devices);
+    DEBUG_LOG(PresentationDevices.getList());
 
   }, function(error) {
     DEBUG_LOG('-*- discoveryDevices >> mozPresentationDeviceInfo.getAll() >> fail!');
@@ -90,98 +86,223 @@ function discoveryDevices(win) {
   win.NativeWindow.toast.show('Discovery presentaion devices', "short");
 }
 
-// function checkPermission(win, type) {
-//   DEBUG_LOG('# checkPermission: ' + type);
-//   DEBUG_LOG(win);
-//   DEBUG_LOG(win.document);
-//   let principal = win.document.nodePrincipal;
-//   DEBUG_LOG(principal);
-//   var hasPerm = Services.perms.testPermissionFromPrincipal(principal, type);
-//   DEBUG_LOG('  hasPerm >> ' + hasPerm);
-//   return hasPerm;
-// }
 
-function unloadPresentationDeviceManagerAndCastingManagerFromWindow(win) {
-  DEBUG_LOG('# unloadPresentationDeviceManagerAndCastingManagerFromWindow(');
-  if (PresDevMgrList.hasOwnProperty(win.name)) {
-    DEBUG_LOG('  >> delete PresDevMgr');
-    delete PresDevMgrList[win.name];
-  }
-
-  if (CastingMgrList.hasOwnProperty(win.name)) {
-    DEBUG_LOG('  >> delete CastingMgr');
-    // Remove pageAction from this window
-    PageActions.remove(CastingMgrList[win.name].pageActionId);
-
-    // then delete the CastingManager
-    delete CastingMgrList[win.name];
-  }
-}
-
-function initCastingManagerForWindow(win) {
-  DEBUG_LOG('# initCastingManagerForWindow');
-  // If CastingManager for this window alreay exist, then do nothing
-  if (CastingMgrList[win.name]) {
-    DEBUG_LOG('  >> CastingManager for this window alreay exist!');
-    return;
-  }
-
-  var castingMgr = new CastingManager();
-  castingMgr.init(win);
-
-  // Add this CastingManager to array that
-  // contains all pairs of window and CastingManager
-  CastingMgrList[win.name] = castingMgr;
-}
-
-function initPresentationDeviceManagerForWindow(win) {
-  DEBUG_LOG('# initPresentationDeviceManagerForWindow');
-  // If CastingManager for this window alreay exist, then do nothing
-  if (PresDevMgrList[win.name]) {
-    DEBUG_LOG('  >> PresentationDeviceManager for this window alreay exist!');
-    return;
-  }
-
-  var presDevMgr = new PresentationDeviceManager();
-  presDevMgr.init(win);
-  // Add this PresentationDeviceManager to array that
-  // contains all pairs of window and PresentationDeviceManager
-  PresDevMgrList[win.name] = presDevMgr;
-}
 
 /*
  * Core Functions
  * ==================================
  */
+// PresentationDevices
+// ----------------------
+var PresentationDevices = (function () {
+  DEBUG_LOG('# [PresentationDevices] Immediately invoked!');
+  // Private Basic class for presentation device's infomation
+  function DeviceInfo(device) {
+    this.id = device.id || 'unidentified';
+    this.name = device.name || 'unidentified';
+    this.type = device.type || 'unidentified';
+    this.castVideoEnabled = true;
+    this.castPageEnabled = true;
+    this.pinPageEnabled = true;
+    this.remoteControlEnabled = true;
+  }
 
-/*
- * Presentation API
- * ----------------------
- */
-function PresentationDeviceInfo(device) {
-  this.id = device.id;
-  this.name = device.name;
-  this.type = device.type;
-  this.castVideoEnabled = true;
-  this.castPageEnabled = true;
-  this.pinPageEnabled = true;
-}
+  // To save all information of the presentation devices discovered
+  var _list = [];
 
-function PresentationDeviceManager() {}
+  function setList(devices) {
+    DEBUG_LOG('# [PresentationDevices] setList');
+    _list = devices.map(function(dev) {
+      var info = new DeviceInfo(dev);
+      return info;
+    });
+  }
 
-PresentationDeviceManager.prototype = {
-  deviceList: [],
+  function getList() {
+    DEBUG_LOG('# [PresentationDevices] getList');
+    return _list;
+  }
 
-  init: function(win) {
+  function addDevice(device) {
+    DEBUG_LOG('# [PresentationDevices] addDevice');
+    var found = _list.find(function(dev) {
+      return dev.id == device.id;
+    });
+
+    if (!found) {
+      _list.push(new DeviceInfo(device));
+    }
+    // For Debug
+    else {
+      DEBUG_LOG('  >> device alreadt exist!');
+    }
+  }
+
+  function updateDevice(device) {
+    DEBUG_LOG('# [PresentationDevices] updateDevice');
+    var index = _list.findIndex(function(dev) {
+      return dev.id == device.id;
+    });
+
+    if (index > -1) {
+      _list[index] = new DeviceInfo(device);
+    }
+    // For Debug
+    else {
+       DEBUG_LOG('  >> device doesn\'t exist!');
+    }
+  }
+
+  function removeDevice(device) {
+    DEBUG_LOG('# [PresentationDevices] removeDevice');
+    var index = _list.findIndex(function(dev) {
+      return dev.id == device.id;
+    });
+
+    if (index > -1) {
+      _list.splice(index, 1);
+    }
+    // For Debug
+    else {
+       DEBUG_LOG('  >> device doesn\'t exist!');
+    }
+  }
+
+  return {
+    setList: setList,
+    getList: getList,
+    add: addDevice,
+    update: updateDevice,
+    remove: removeDevice
+  };
+
+})();
+
+
+// PresentationDeviceManager
+// ----------------------
+// function PresentationDeviceManager() {}
+//
+// PresentationDeviceManager.prototype = {
+//
+//   init: function(window) {
+//     DEBUG_LOG('# PresentationDeviceManager.init');
+//
+//     if (!window.navigator.mozPresentationDeviceInfo) {
+//       DEBUG_LOG('  >> You need to open the preference of Presentation!');
+//       return;
+//     }
+//
+//     window.navigator.mozPresentationDeviceInfo.addEventListener('devicechange', this);
+//
+//     window.navigator.mozPresentationDeviceInfo.getAll()
+//     .then(function(devices) {
+//       DEBUG_LOG('-*- mozPresentationDeviceInfo.getAll() >> successfully!');
+//
+//       if (devices === undefined || !devices.length) {
+//         DEBUG_LOG('  >> no device!');
+//         return;
+//       }
+//
+//       // Add these devices into list
+//       PresentationDevices.setList(devices);
+//       DEBUG_LOG(PresentationDevices.getList());
+//
+//       // Initialize CastingManager for this window if it doesn't exist
+//       initCastingManagerForWindow(window);
+//
+//     }, function(error) {
+//       DEBUG_LOG('-*- mozPresentationDeviceInfo.getAll() >> fail!');
+//       DEBUG_LOG(error);
+//     });
+//   },
+//
+//   uninit: function(window) {
+//     DEBUG_LOG('# PresentationDeviceManager.uninit');
+//     window.navigator.mozPresentationDeviceInfo.removeEventListener('devicechange', this);
+//   },
+//
+//   handleEvent: function(evt) {
+//     DEBUG_LOG('# PresentationDeviceManager.handleEvent: ' + evt.detail.type);
+//     switch(evt.detail.type) {
+//       case 'add':
+//         PresentationDevices.add(evt.detail.deviceInfo);
+//         // If this is the first device, then we need to
+//         // initialize CastingManager for this window
+//         if (PresentationDevices.getList().length == 1) {
+//           // evt.currentTarget is PresentationDeviceManager itself,
+//           // but we can get window by 'evt.currentTarget.ownerGlobal'
+//           initCastingManagerForWindow(evt.currentTarget.ownerGlobal);
+//         }
+//         break;
+//
+//       case 'update':
+//         PresentationDevices.update(evt.detail.deviceInfo);
+//         break;
+//
+//       case 'remove':
+//         PresentationDevices.remove(evt.detail.deviceInfo);
+//         // If the device list is empty now, then CastingManager is no longer
+//         // needed for this window
+//         if (!PresentationDevices.getList().length) {
+//           uninitCastingManagerForWindow(evt.currentTarget.ownerGlobal);
+//         }
+//         break;
+//
+//       default:
+//         DEBUG_LOG('!!!!! Unexpected error: No event handler for this type');
+//         break;
+//     }
+//   },
+//
+// };
+
+var PresentationDeviceManager = function() {
+
+  function _handleEvent(evt) {
+    DEBUG_LOG('# PresentationDeviceManager.handleEvent: ' + evt.detail.type);
+    switch(evt.detail.type) {
+      case 'add':
+        PresentationDevices.add(evt.detail.deviceInfo);
+        // If this is the first device, then we need to
+        // initialize CastingManager for this window
+        if (PresentationDevices.getList().length == 1) {
+          // evt.currentTarget is PresentationDeviceManager itself,
+          // but we can get window by 'evt.currentTarget.ownerGlobal'
+          initCastingManagerForWindow(evt.currentTarget.ownerGlobal);
+        }
+        break;
+
+      case 'update':
+        PresentationDevices.update(evt.detail.deviceInfo);
+        break;
+
+      case 'remove':
+        PresentationDevices.remove(evt.detail.deviceInfo);
+        // If the device list is empty now, then CastingManager is no longer
+        // needed for this window
+        if (!PresentationDevices.getList().length) {
+          uninitCastingManagerForWindow(evt.currentTarget.ownerGlobal);
+        }
+        break;
+
+      default:
+        DEBUG_LOG('!!!!! Unexpected error: No event handler for this type');
+        break;
+    }
+  }
+
+  function init(window) {
     DEBUG_LOG('# PresentationDeviceManager.init');
 
-    if (!win.navigator.mozPresentationDeviceInfo) {
+    if (!window.navigator.mozPresentationDeviceInfo) {
       DEBUG_LOG('  >> You need to open the preference of Presentation!');
       return;
     }
 
-    // Get available devices
-    win.navigator.mozPresentationDeviceInfo.getAll()
+    window.navigator.mozPresentationDeviceInfo.addEventListener('devicechange', _handleEvent);
+
+    window.navigator.mozPresentationDeviceInfo.getAll()
     .then(function(devices) {
       DEBUG_LOG('-*- mozPresentationDeviceInfo.getAll() >> successfully!');
 
@@ -190,321 +311,335 @@ PresentationDeviceManager.prototype = {
         return;
       }
 
-      DEBUG_LOG('  >> we get: ');
-      for (var i in devices) {
-        DEBUG_LOG(devices[i]);
-      }
-
       // Add these devices into list
-      this.appendDevicesIntoList(devices);
+      PresentationDevices.setList(devices);
+      DEBUG_LOG(PresentationDevices.getList());
 
       // Initialize CastingManager for this window if it doesn't exist
-      initCastingManagerForWindow(win);
+      initCastingManagerForWindow(window);
 
-      // Show icon in URL bar
-      CastingMgrList[win.name].updatePageAction(win);
-
-    }.bind(this), function(error) {
+    }, function(error) {
       DEBUG_LOG('-*- mozPresentationDeviceInfo.getAll() >> fail!');
       DEBUG_LOG(error);
     });
+  }
 
-    // Use event listener to update deviceList
-    win.navigator.mozPresentationDeviceInfo.addEventListener('devicechange',
-    function deviceChangeHandler(evt) {
-      let detail = evt.detail;
-      DEBUG_LOG('-*- devicechange: ' + detail.type);
-      this.updateDeviceList(win, detail.type, detail.deviceInfo);
-    }.bind(this));
-  },
+  function uninit(window) {
+    DEBUG_LOG('# PresentationDeviceManager.uninit');
+    window.navigator.mozPresentationDeviceInfo.removeEventListener('devicechange', _handleEvent);
+  }
 
-  updateDeviceList: function(win, type, dev) {
-    DEBUG_LOG('# PresentationDeviceManager.updateDeviceList: ' + type);
-    DEBUG_LOG(dev);
-    switch(type) {
-      case 'add':
-        this.addDeviceToList(win, dev);
-        break;
-
-      case 'update':
-        this.updateDeviceInList(dev);
-        break;
-
-      case 'remove':
-        this.removeDeviceFromList(win, dev);
-        break;
-
-      default:
-        DEBUG_LOG('!!!!! Unexpected error: No corresponding action for ' + type);
-        break;
-    }
-  },
-
-  appendDevicesIntoList: function(devices) {
-    DEBUG_LOG('# PresentationDeviceManager.appendDevicesIntoList');
-    this.deviceList = this.deviceList.concat(devices.map(function(dev) {
-      var presDevInfo = new PresentationDeviceInfo(dev);
-      return presDevInfo;
-    }));
-  },
-
-  addDeviceToList: function(win, dev) {
-    DEBUG_LOG('# PresentationDeviceManager.addDeviceToList');
-
-    var devFound = this.deviceList.find(function(d) {
-      return d.id == dev.id;
-    });
-
-    if (devFound) {
-      DEBUG_LOG('  >> device alreadt exist!');
-      return;
-    }
-
-    this.deviceList.push(new PresentationDeviceInfo(dev));
-
-    // If it's first device, then
-    if (this.deviceList.length == 1) {
-      DEBUG_LOG('  >> it\'s first device!');
-      // Initialize CastingManager for this window if it doesn't exist
-      initCastingManagerForWindow(win);
-      // Add icon to URL bar
-      CastingMgrList[win.name].updatePageAction(win);
-    }
-  },
-
-  updateDeviceInList: function(dev) {
-    DEBUG_LOG('# PresentationDeviceManager.updateDeviceInList');
-    var devFound = this.deviceList.find(function(d) {
-      return d.id == dev.id;
-    });
-    if (!devFound) {
-      DEBUG_LOG('  !!!!! Error: Can\'t find device !!!!!');
-    }
-    devFound = dev;
-  },
-
-  removeDeviceFromList: function(win, dev) {
-    DEBUG_LOG('# PresentationDeviceManager.removeDeviceFromList');
-
-    // Create a new list without the removed one
-    this.deviceList = this.deviceList.filter(function(d) {
-      return d.id != dev.id;
-    });
-
-    // If device list is empty now, then
-    if (!this.deviceList.length) {
-      DEBUG_LOG('  >> device is empty now');
-
-      // Remove icon from URL bar
-      CastingMgrList[win.name].updatePageAction(win);
-
-      // Remove the CastingManager from this window
-    }
-  },
+  return {
+    init: init,
+    uninit: uninit,
+  };
 };
 
-/*
- * CastingManager
- * ----------------------
- */
-function CastingManager() {}
+function initPresentationDeviceManagerForWindow(window) {
+  DEBUG_LOG('$$$ initPresentationDeviceManagerForWindow');
 
-CastingManager.prototype = {
-  pageActionIcon: null,
-  pageActionId: null,
+  if (!window.hasOwnProperty('presentationDeviceManager')) {
+    DEBUG_LOG('  >> Create PresentationDeviceManager for this window');
+    window.presentationDeviceManager = new PresentationDeviceManager();
+    window.presentationDeviceManager.init(window);
+  }
+}
 
-  init: function(win) {
-    DEBUG_LOG('# CastingManager.init');
-    this.setPageActionIcon(win);
+function uninitPresentationDeviceManagerForWindow(window) {
+  DEBUG_LOG('$$$ uninitPresentationDeviceManagerForWindow');
+  if (window.hasOwnProperty('presentationDeviceManager')) {
+    DEBUG_LOG('  >> Delete PresentationDeviceManager for this window');
+    window.presentationDeviceManager.uninit();
+    delete window.presentationDeviceManager;
+  }
+}
 
-    let refreshPageActionIcon = function() {
-      DEBUG_LOG('  >> refreshPageActionIcon()');
-      this.updatePageAction(win);
-    }.bind(this);
 
-    // Reload pageActionIcon in URL bar after page has been loaded
-    win.addEventListener('DOMContentLoaded', function() {
-      DEBUG_LOG('  >> DOMContentLoaded!!');
-      refreshPageActionIcon();
-    }, false);
+// CastingManager
+// ----------------------
+// function CastingManager() {}
+//
+// CastingManager.prototype = {
+//   _pageActionIcon: null,
+//   _pageActionId: null,
+//
+//   _setPageActionIcon: function() {
+//   },
+//
+//   _shouldCast: function() {
+//   },
+//
+//   _addPageAction: function() {
+//   },
+//
+//   _chooseAction: function() {
+//   },
+//
+//   _promptInfoGenerator: function() {
+//   },
+//
+//   _getCurrentURL: function() {
+//   },
+//
+//   _castVideo: function() {
+//   },
+//
+//   _castWebpage: function() {
+//   },
+//
+//   _pinWebpageToHomescreen: function() {
+//   },
+//
+//   _remoteControl: function() {
+//   },
+//
+//   init: function() {
+//   },
+//
+//   uninit: function() {
+//   },
+//
+//   updatePageAction: function() {
+//   },
+//
+// };
 
-    // Reload pageActionIcon after tab has been switched
-    // TODO: visibilitychange is also fired before tab is switching, it's annoyed
-    win.addEventListener('visibilitychange', function() {
-      DEBUG_LOG('  >> visibilitychange!!');
-      refreshPageActionIcon();
-    }, false);
-  },
+var CastingManager = function() {
 
-  setPageActionIcon: function(win) {
-    DEBUG_LOG('# CastingManager.setPageActionIcon');
-    // pageActionIncon has already been set
-    if (this.pageActionIcon) {
-      return;
+    var _pageActionIcon = null,
+        _pageActionId = null;
+
+    function _getCurrentURL(window) {
+      DEBUG_LOG('# CastingManager._getCurrentURL');
+      DEBUG_LOG(window);
+      return window.BrowserApp.selectedBrowser.currentURI.spec;
     }
 
-    // Using data URIs as a workaround until bug 993698 is fixed.
-    if (win.devicePixelRatio <= 1.5) {
-      DEBUG_LOG('win.devicePixelRatio <= 1.5');
-      this.pageActionIcon = ICON_HDPI;
-    } else if (win.devicePixelRatio <= 2) {
-      DEBUG_LOG('win.devicePixelRatio <= 2');
-      this.pageActionIcon = ICON_XHDPI;
-    } else {
-      DEBUG_LOG('win.devicePixelRatio > 2');
-      this.pageActionIcon = ICON_XXHDPI;
-    }
-  },
-
-  shouldCast: function(win) {
-    DEBUG_LOG('# CastingManager.shouldCast');
-    var currentURL = this.getCurrentURL(win);
-    var validURL = currentURL.includes('http://') || currentURL.includes('https://');
-    DEBUG_LOG('  >> validURL: ' + validURL);
-    var devicesFound = PresDevMgrList[win.name] && (PresDevMgrList[win.name].deviceList.length > 0);
-    DEBUG_LOG('  >> devicesFound: ' + devicesFound);
-    return validURL && devicesFound;
-  },
-
-  updatePageAction: function(win) {
-    DEBUG_LOG('# CastingManager.loadPageAction');
-
-    if (!this.shouldCast(win)) {
-      DEBUG_LOG('>> no need to cast!');
-
-      if (this.pageActionId) {
-        DEBUG_LOG('Remove existing PageActionIcon!');
-        PageActions.remove(this.pageActionId);
-        this.pageActionId = null;
-      }
-
-      return;
+    function _castVideo(window, target) {
+      DEBUG_LOG('# CastingManager._castVideo');
+      DEBUG_LOG(target);
+      var currentURL = _getCurrentURL(window);
+      window.alert('TODO: Cast video from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
     }
 
-    DEBUG_LOG('>> prepare to cast!');
-    this.addPageAction(win);
-  },
-
-  addPageAction: function(win) {
-    DEBUG_LOG('# CastingManager.addPageAction');
-
-    if (this.pageActionId) {
-      DEBUG_LOG('PageActionsIcon already exist!');
-      return;
+    function _castWebpage(window, target) {
+      DEBUG_LOG('# CastingManager._castWebpage');
+      DEBUG_LOG(target);
+      var currentURL = _getCurrentURL(window);
+      window.alert('TODO: Cast webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
     }
 
-    DEBUG_LOG('>> show PageActions!');
-    this.pageActionId = PageActions.add({
-      icon: this.pageActionIcon,
-      title: Strings.GetStringFromName("pageaction.title"),
-      clickCallback: () => this.chooseAction(win)
-    });
-  },
+    function _pinWebpageToHomescreen(window, target) {
+      DEBUG_LOG('# CastingManager._pinWebpageToHomescreen');
+      DEBUG_LOG(target);
+      var currentURL = _getCurrentURL(window);
+      window.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
+    }
 
-  chooseAction: function(win) {
-    DEBUG_LOG('# CastingManager.chooseAction');
-    var promptInfo = this.promptInfoGenerator(win);
+    function _remoteControl(window, target) {
+      DEBUG_LOG('# CastingManager._remoteControl');
+      DEBUG_LOG(target);
+      var currentURL = _getCurrentURL(window);
+      window.alert('TODO: remote control from: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
+    }
 
-    var p = new Prompt({
-      title: Strings.GetStringFromName("prompt.title")
-    });
-    p.setSingleChoiceItems(promptInfo.menu);
+    function _shouldCast(window) {
+      DEBUG_LOG('# CastingManager._shouldCast');
+      var currentURL = _getCurrentURL(window);
+      var validURL = currentURL.includes('http://') || currentURL.includes('https://');
+      DEBUG_LOG('  >> validURL: ' + validURL);
+      var devicesFound = PresentationDevices.getList().length > 0;
+      DEBUG_LOG('  >> devicesFound: ' + devicesFound);
+      return validURL && devicesFound;
+    }
 
-    p.show(function(data) {
-      DEBUG_LOG('  >> press button: ' + data.button);
-      // Fire callbacks with corresponding target device
-      // promptInfo.callbacks[data.button](promptInfo.targets[data.button]);
+    function _setPageActionIcon(window) {
+      DEBUG_LOG('# CastingManager._setPageActionIcon');
 
-      // This condition is for demo!
-      if (!promptInfo.callbacks[data.button]) {
-        DEBUG_LOG('  >> no callbak for this button!');
+      // pageActionIncon has already been set
+      if (_pageActionIcon) {
+        DEBUG_LOG('  >> pageActionIcon alreay exist!');
         return;
       }
 
-      if (promptInfo.callbacks[data.button]) {
-        promptInfo.callbacks[data.button](promptInfo.targets[data.button]);
-      }
-    });
-  },
-
-  promptInfoGenerator: function(win) {
-    DEBUG_LOG('# CastingManager.promptInfoGenerator');
-
-    // Prompt menu
-    var menu = [];
-
-    // Callbacks for clicking menu
-    var sendVideo = function(target) { this.castVideo(win, target); }.bind(this);
-    var sendPage = function(target) { this.castWebpage(win, target); }.bind(this);
-    var pinPage = function(target) { this.pinWebpageToHomescreen(win, target); }.bind(this);
-    var callbacks = {};
-
-    // target device for callbacks
-    var targetDevices = {};
-
-    // Load devices information into prompt munu and set its callbacks
-    var devices = PresDevMgrList[win.name].deviceList;
-    // TODO: The properties in devies may be changed after using real presentation API
-
-    var key = 0;
-    for (var i in devices) {
-      // Assume every device has valid name
-      menu.push({ label: devices[i].name, header: true });
-      ++key;
-
-      if (devices[i].castVideoEnabled) {
-        menu.push({ label: Strings.GetStringFromName("prompt.sendVideo") });
-        callbacks[key] = sendVideo;
-        targetDevices[key] = devices[i];
-        ++key;
-      }
-
-      if (devices[i].castPageEnabled) {
-        menu.push({ label: Strings.GetStringFromName("prompt.sendURL") });
-        callbacks[key] = sendPage;
-        targetDevices[key] = devices[i];
-        ++key;
-      }
-
-      if (devices[i].pinPageEnabled) {
-        menu.push({ label: Strings.GetStringFromName("prompt.addURL") });
-        callbacks[key] = pinPage;
-        targetDevices[key] = devices[i];
-        ++key;
+      if (window) {
+        // Using data URIs as a workaround until bug 993698 is fixed.
+        if (window.devicePixelRatio <= 1.5) {
+          DEBUG_LOG('window.devicePixelRatio <= 1.5');
+          _pageActionIcon = ICON_HDPI;
+        } else if (window.devicePixelRatio <= 2) {
+          DEBUG_LOG('window.devicePixelRatio <= 2');
+          _pageActionIcon = ICON_XHDPI;
+        } else {
+          DEBUG_LOG('window.devicePixelRatio > 2');
+          _pageActionIcon = ICON_XXHDPI;
+        }
       }
     }
 
-    return { menu: menu, callbacks: callbacks, targets:targetDevices };
-  },
+    function _addPageAction(window) {
+      DEBUG_LOG('# CastingManager._addPageAction');
+      if (_pageActionId) {
+        DEBUG_LOG('  >> PageActionsIcon already exist!');
+        return;
+      }
+      _pageActionId = PageActions.add({
+        icon: _pageActionIcon,
+        title: Strings.GetStringFromName("pageaction.title"),
+        clickCallback: () => _chooseAction(window)
+      });
+    }
 
-  getCurrentURL: function(win) {
-    DEBUG_LOG('# CastingManager.getCurrentURL');
-    return win.BrowserApp.selectedBrowser.currentURI.spec;
-  },
+    function _chooseAction(window) {
+      DEBUG_LOG('# CastingManager._chooseAction');
+      var promptInfo = _promptInfoGenerator(window);
 
-  castVideo: function(win, target) {
-    DEBUG_LOG('# CastingManager.castVideo');
-    DEBUG_LOG(target);
-    var currentURL = this.getCurrentURL(win);
-    win.alert('TODO: Cast video from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
-  },
+      var p = new Prompt({
+        title: Strings.GetStringFromName("prompt.title")
+      });
 
-  castWebpage: function(win, target) {
-    DEBUG_LOG('# CastingManager.castWebpage');
-    DEBUG_LOG(target);
-    var currentURL = this.getCurrentURL(win);
-    win.alert('TODO: Cast webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
-  },
+      p.setSingleChoiceItems(promptInfo.menu);
 
-  pinWebpageToHomescreen: function(win, target) {
-    DEBUG_LOG('# CastingManager.pinWebpageToHomescreen');
-    DEBUG_LOG(target);
-    var currentURL = this.getCurrentURL(win);
-    win.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
-  },
+      p.show(function(data) {
+        DEBUG_LOG('  >> press button: ' + data.button);
+        // Fire callbacks with corresponding target device
+        if (data.button > 0 && promptInfo.callbacks[data.button]) {
+          DEBUG_LOG('  >> Fire callbak for this button!');
+          promptInfo.callbacks[data.button](window, promptInfo.targets[data.button]);
+        }
+      });
+    }
+
+    function _promptInfoGenerator(window) {
+      DEBUG_LOG('# CastingManager._promptInfoGenerator');
+      // Prompt menu
+      var menu = [];
+
+      // Callbacks for clicking menu
+      var callbacks = {};
+
+      // target device for callbacks
+      var targetDevices = {};
+
+      // Load devices information into prompt munu and set its callbacks
+      var devices = PresentationDevices.getList();
+
+      var key = 0;
+      for (var i in devices) {
+        // Assume every device has valid name
+        menu.push({ label: devices[i].name, header: true });
+        ++key;
+
+        if (devices[i].castVideoEnabled) {
+          menu.push({ label: Strings.GetStringFromName("prompt.sendVideo") });
+          callbacks[key] = _castVideo;
+          targetDevices[key] = devices[i];
+          ++key;
+        }
+
+        if (devices[i].castPageEnabled) {
+          menu.push({ label: Strings.GetStringFromName("prompt.sendURL") });
+          callbacks[key] = _castWebpage;
+          targetDevices[key] = devices[i];
+          ++key;
+        }
+
+        if (devices[i].pinPageEnabled) {
+          menu.push({ label: Strings.GetStringFromName("prompt.addURL") });
+          callbacks[key] = _pinWebpageToHomescreen;
+          targetDevices[key] = devices[i];
+          ++key;
+        }
+
+        if (devices[i].remoteControlEnabled) {
+          menu.push({ label: Strings.GetStringFromName("prompt.remoteControl") });
+          callbacks[key] = _remoteControl;
+          targetDevices[key] = devices[i];
+          ++key;
+        }
+      }
+
+      return { menu: menu, callbacks: callbacks, targets:targetDevices };
+    }
+
+    function _handleEvent(evt) {
+      DEBUG_LOG('# CastingManager._handleEvent');
+      switch(evt.type) {
+        case 'DOMContentLoaded':
+          DEBUG_LOG(' >> DOMContentLoaded');
+        case 'visibilitychange':
+          DEBUG_LOG(' >> visibilitychange');
+          updatePageAction(evt.currentTarget); // current target is window!
+          break;
+        default:
+          DEBUG_LOG('!!!!! Unexpected error: No event handler for this type');
+          break;
+      }
+    }
+
+    function updatePageAction(window) {
+      DEBUG_LOG('# CastingManager.updatePageAction');
+      if (!_shouldCast(window)) {
+        DEBUG_LOG('  >> no need to cast!');
+
+        if (_pageActionId) {
+          DEBUG_LOG('  >> Remove existing PageActionIcon!');
+          PageActions.remove(_pageActionId);
+          _pageActionId = null;
+        }
+
+        return;
+      }
+
+      _addPageAction(window);
+    }
+
+    function init(window) {
+      DEBUG_LOG('# CastingManager.init');
+      _setPageActionIcon(window);
+
+      // Reload pageActionIcon in URL bar after page has been loaded
+      window.addEventListener('DOMContentLoaded', _handleEvent, false);
+
+      // Reload pageActionIcon after tab has been switched
+      // TODO: visibilitychange is also fired before tab is switching, it's annoyed
+      window.addEventListener('visibilitychange', _handleEvent, false);
+
+      // Add pageActionIcon to URL bar if it need
+      updatePageAction(window);
+    }
+
+    function uninit(window) {
+      DEBUG_LOG('# CastingManager.uninit');
+      window.removeEventListener('DOMContentLoaded', _handleEvent);
+      window.removeEventListener('visibilitychange', _handleEvent);
+    }
+
+    return {
+      init: init,
+      uninit: uninit,
+      update: updatePageAction
+    };
 };
 
+function initCastingManagerForWindow(window) {
+  DEBUG_LOG('$$$ initCastingManagerForWindow');
 
+  if (!window.hasOwnProperty('castingManager')) {
+    DEBUG_LOG('  >> Create CastingManager for this window');
+    window.castingManager = new CastingManager();
+    window.castingManager.init(window);
+  }
+}
+
+function uninitCastingManagerForWindow(window) {
+  DEBUG_LOG('$$$ uninitCastingManagerForWindow');
+  if (window.hasOwnProperty('castingManager')) {
+    DEBUG_LOG('  >> Delete CastingManager for this window');
+    window.castingManager.uninit();
+    delete window.castingManager;
+  }
+}
 
 /*
  * Program Flow Control
@@ -512,22 +647,29 @@ CastingManager.prototype = {
  */
 function loadIntoWindow(window) {
   DEBUG_LOG('### loadIntoWindow: ');
-  // Set an unique id to window
+  // Set an unique id to window's name
   window.name = GET_UNIQUE_ID();
   DEBUG_LOG('  >> window.name: ' + window.name);
+
+  // Initialize PresentationDeviceManager for this window
   initPresentationDeviceManagerForWindow(window);
 
-  // Add a force-discovery into menu
-  DiscoveryMenuId = window.NativeWindow.menu.add("Discovery Devices", null, function() { discoveryDevices(window); });
+  // For Debug: Add a force-discovery into menu
+  gDiscoveryMenuId = window.NativeWindow.menu.add("Discovery Devices", null, function() { discoveryDevices(window); });
 }
 
 function unloadFromWindow(window) {
   DEBUG_LOG('### unloadFromWindow');
-  unloadPresentationDeviceManagerAndCastingManagerFromWindow(window);
 
-  // Remove the force-discovery from menu
-  if (DiscoveryMenuId) {
-    window.NativeWindow.menu.remove(DiscoveryMenuId);
+  // Remove PresentationDeviceManager from this window
+  uninitPresentationDeviceManagerForWindow(window);
+
+  // Remove CastingManager from this window
+  uninitCastingManagerForWindow(window);
+
+  // For Debug: Remove the force-discovery from menu
+  if (gDiscoveryMenuId) {
+    window.NativeWindow.menu.remove(gDiscoveryMenuId);
   }
 }
 
