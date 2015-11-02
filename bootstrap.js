@@ -1,29 +1,19 @@
 "use strict";
 
 /*
- * Const Values
+ * Images
  * ==================================
  */
-const { classes: Cc, interfaces: Ci, utils: Cu } = Components;
-
-const ICON_HDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAWCAYAAAAxSueLAAAAAXNSR0IArs4c6QAAAOdJREFUSA3tlj0KwkAQhd8LqUQLD6EnsPMI4hkSiEX8KS30BNrYiiBBPYN4BUt7vYSgtjpOlHQjGHCtss2ws7PvzX7NLINOtw9gCpGyRjeLvKnwyKfIRAB3Rmn7+hACE1+NKul+kyx072YFUSypj+dG3lYtzGwuObMFxpzA7PICo80lZ7bAmBOYXf5XjAyj+JKNGbuf32R1fl09Icd4T9LfqFoqqv/ysc5c5T5O5zDqtYHHTBHXvjYnTxQO18l8a935aJYVB9GgCe/e0r9KA8K6mldBlChQNDirwFFrDyR3q+V8n92z4hNcNDP6qelDfAAAAABJRU5ErkJggg==";
-const ICON_XHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAeCAYAAABE4bxTAAAAAXNSR0IArs4c6QAAAUtJREFUWAntl7tKxEAUhs85SWFjsz6Bha0KYuEFLCx8g1ia9QKSp8gj2CyKi5dtfQ8RFcQV7CwstPNSWiXHfxZcdiHkCMKOCzMQksxP5nz5MgMTTveyeSrLcyWaJSLG4aMpCj+QSCqkegaYOVD4gnECuMcAFlFVB/MvmmOJQdI30zk56l+PknBrZx+Ceo1llIV/UysAWZaCoWDIMmDlYQ4FQ5YBKw9zKBiyDFh5mENjZ4ixfSxB7WXrWmFLhZm7FYGXLsciUazb0OOgfjbaPmDcf1mXmJs+io9XTXMyN3ezzVK1hS869bdX4/dIJDttty7qxonqQpfd390+Li6sdJT1C/Qz6Jq0nhnKmV5F+GAi1rR9fHgzlFXcmIYGn8nzPH5+eVslKpaxApaQTcNcg4kbOBfo+8CAnzg/YcVcw8jVxvraZZIkxeA4ddff5klO7Te5Hm4AAAAASUVORK5CYII=";
-const ICON_XXHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADYAAAAtCAYAAADlVJiFAAAAAXNSR0IArs4c6QAAAf1JREFUaAXtms1KQkEUx88ZfYCgwha1CVr0AbWolvkEPUGFiB+oiyCC3Lp1FYSUaCYSPUPr3AUREaQEtWrjQl8guvd0pkVIKc29QpxbMyDemXvmzP+c34wDziBwiaVyW0hunggWuBrSbQEsDiK0CFWxUT2+wHgyu+0SnQcwkKGSFeKOcgnyQy0C+oKADhQAzQdU/1DZeklxYIFdU0MD0zGFB71t1Mo4qF1qWyyRoa/aNLE/WWxgQcNqiVliQjJgp6IQEMYyLDHjVAkxtMSEgDCWYYkZp0qIoSUmBISxDEvMOFVCDC0xISCMZVhixqkSYmiJCQFhLMMSM06VEEMc9PewEG0jydBT0RnJg8zODgeGbZna/KvSJ5tKIRT9u5DZUx/Xhu5ub+5XVtefEGiOZU7wJ6i/lPoM+gGU2tdn0DJTblX9wwx4PpKNJTO7CHhIRL+yFhGRLzbQXuO0fOSFj+fAtPN4KhslF854wFkvg3m2RXjmOxuJevXkymtfX1n/GGgmsqhAZZjeo9dBf7RHbKNSaZyeWvITlPbvi1i/MJ6SmEjnNh0XEuxsgymO9b83fkbocpKavNvU6tXSJU/BbzcBjH2x4ciB9Q9WKBTUS6ez7LxhlNvXgCjC37w34iSPNM71V673WHGXhff4ucP753UYQ81KpdQaNRj291neAeiAdCFRHoGDAAAAAElFTkSuQmCC";
-
-
-
-/*
- * Global Variables
- * ==================================
- */
-var gDiscoveryMenuId = null;
-
-
+ const ICON_HDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAWCAYAAAAxSueLAAAAAXNSR0IArs4c6QAAAOdJREFUSA3tlj0KwkAQhd8LqUQLD6EnsPMI4hkSiEX8KS30BNrYiiBBPYN4BUt7vYSgtjpOlHQjGHCtss2ws7PvzX7NLINOtw9gCpGyRjeLvKnwyKfIRAB3Rmn7+hACE1+NKul+kyx072YFUSypj+dG3lYtzGwuObMFxpzA7PICo80lZ7bAmBOYXf5XjAyj+JKNGbuf32R1fl09Icd4T9LfqFoqqv/ysc5c5T5O5zDqtYHHTBHXvjYnTxQO18l8a935aJYVB9GgCe/e0r9KA8K6mldBlChQNDirwFFrDyR3q+V8n92z4hNcNDP6qelDfAAAAABJRU5ErkJggg==";
+ const ICON_XHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAeCAYAAABE4bxTAAAAAXNSR0IArs4c6QAAAUtJREFUWAntl7tKxEAUhs85SWFjsz6Bha0KYuEFLCx8g1ia9QKSp8gj2CyKi5dtfQ8RFcQV7CwstPNSWiXHfxZcdiHkCMKOCzMQksxP5nz5MgMTTveyeSrLcyWaJSLG4aMpCj+QSCqkegaYOVD4gnECuMcAFlFVB/MvmmOJQdI30zk56l+PknBrZx+Ceo1llIV/UysAWZaCoWDIMmDlYQ4FQ5YBKw9zKBiyDFh5mENjZ4ixfSxB7WXrWmFLhZm7FYGXLsciUazb0OOgfjbaPmDcf1mXmJs+io9XTXMyN3ezzVK1hS869bdX4/dIJDttty7qxonqQpfd390+Li6sdJT1C/Qz6Jq0nhnKmV5F+GAi1rR9fHgzlFXcmIYGn8nzPH5+eVslKpaxApaQTcNcg4kbOBfo+8CAnzg/YcVcw8jVxvraZZIkxeA4ddff5klO7Te5Hm4AAAAASUVORK5CYII=";
+ const ICON_XXHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADYAAAAtCAYAAADlVJiFAAAAAXNSR0IArs4c6QAAAf1JREFUaAXtms1KQkEUx88ZfYCgwha1CVr0AbWolvkEPUGFiB+oiyCC3Lp1FYSUaCYSPUPr3AUREaQEtWrjQl8guvd0pkVIKc29QpxbMyDemXvmzP+c34wDziBwiaVyW0hunggWuBrSbQEsDiK0CFWxUT2+wHgyu+0SnQcwkKGSFeKOcgnyQy0C+oKADhQAzQdU/1DZeklxYIFdU0MD0zGFB71t1Mo4qF1qWyyRoa/aNLE/WWxgQcNqiVliQjJgp6IQEMYyLDHjVAkxtMSEgDCWYYkZp0qIoSUmBISxDEvMOFVCDC0xISCMZVhixqkSYmiJCQFhLMMSM06VEEMc9PewEG0jydBT0RnJg8zODgeGbZna/KvSJ5tKIRT9u5DZUx/Xhu5ub+5XVtefEGiOZU7wJ6i/lPoM+gGU2tdn0DJTblX9wwx4PpKNJTO7CHhIRL+yFhGRLzbQXuO0fOSFj+fAtPN4KhslF854wFkvg3m2RXjmOxuJevXkymtfX1n/GGgmsqhAZZjeo9dBf7RHbKNSaZyeWvITlPbvi1i/MJ6SmEjnNh0XEuxsgymO9b83fkbocpKavNvU6tXSJU/BbzcBjH2x4ciB9Q9WKBTUS6ez7LxhlNvXgCjC37w34iSPNM71V673WHGXhff4ucP753UYQ81KpdQaNRj291neAeiAdCFRHoGDAAAAAElFTkSuQmCC";
 
 /*
  * XPCOM modules
  * ==================================
  */
+ const { classes: Cc, interfaces: Ci, utils: Cu } = Components;
+
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/PageActions.jsm");
@@ -59,6 +49,8 @@ function GET_UNIQUE_ID() {
 
 // For Debug
 // ----------------------
+var gDiscoveryMenuId = null;
+
 function discoveryDevices(win) {
   DEBUG_LOG('# discoveryDevices');
   win.navigator.mozPresentationDeviceInfo.getAll()
@@ -94,7 +86,7 @@ function discoveryDevices(win) {
  */
 // PresentationDevices
 // ----------------------
-var PresentationDevices = (function () {
+const PresentationDevices = (function () {
   DEBUG_LOG('# [PresentationDevices] Immediately invoked!');
   // Private Basic class for presentation device's infomation
   function DeviceInfo(device) {
@@ -230,7 +222,8 @@ var PresentationDevices = (function () {
 //         // If this is the first device, then we need to
 //         // initialize CastingManager for this window
 //         if (PresentationDevices.getList().length == 1) {
-//           // evt.currentTarget is PresentationDeviceManager itself,
+//           // evt.currentTarget is window.PresentationDeviceInfoManager itself,
+//           //  (loaded by PresentationDeviceInfoManager.jsm)
 //           // but we can get window by 'evt.currentTarget.ownerGlobal'
 //           initCastingManagerForWindow(evt.currentTarget.ownerGlobal);
 //         }
@@ -260,14 +253,16 @@ var PresentationDevices = (function () {
 var PresentationDeviceManager = function() {
 
   function _handleEvent(evt) {
-    DEBUG_LOG('# PresentationDeviceManager.handleEvent: ' + evt.detail.type);
+    DEBUG_LOG('# PresentationDeviceManager._handleEvent: ' + evt.detail.type);
+    DEBUG_LOG(evt);
     switch(evt.detail.type) {
       case 'add':
         PresentationDevices.add(evt.detail.deviceInfo);
         // If this is the first device, then we need to
         // initialize CastingManager for this window
         if (PresentationDevices.getList().length == 1) {
-          // evt.currentTarget is PresentationDeviceManager itself,
+          // evt.currentTarget is window.PresentationDeviceInfoManager itself,
+          // (loaded by PresentationDeviceInfoManager.jsm)
           // but we can get window by 'evt.currentTarget.ownerGlobal'
           initCastingManagerForWindow(evt.currentTarget.ownerGlobal);
         }
@@ -296,12 +291,14 @@ var PresentationDeviceManager = function() {
     DEBUG_LOG('# PresentationDeviceManager.init');
 
     if (!window.navigator.mozPresentationDeviceInfo) {
-      DEBUG_LOG('  >> You need to open the preference of Presentation!');
+      DEBUG_LOG('  >> mozPresentationDeviceInfo should be available');
       return;
     }
 
+    // Add event listener for devicechange
     window.navigator.mozPresentationDeviceInfo.addEventListener('devicechange', _handleEvent);
 
+    // Load avaliable devices into list
     window.navigator.mozPresentationDeviceInfo.getAll()
     .then(function(devices) {
       DEBUG_LOG('-*- mozPresentationDeviceInfo.getAll() >> successfully!');
@@ -335,22 +332,221 @@ var PresentationDeviceManager = function() {
   };
 };
 
-function initPresentationDeviceManagerForWindow(window) {
-  DEBUG_LOG('$$$ initPresentationDeviceManagerForWindow');
+var PresentationConnectionManager = function() {
 
-  if (!window.hasOwnProperty('presentationDeviceManager')) {
-    DEBUG_LOG('  >> Create PresentationDeviceManager for this window');
-    window.presentationDeviceManager = new PresentationDeviceManager();
-    window.presentationDeviceManager.init(window);
+  // var _request = null;
+  var _connection = null;
+
+  function _handleAvailabilityChange(availability) {
+    DEBUG_LOG('# PresentationConnectionManager._handleAvailabilityChange: ' + availability);
+  }
+
+  function _connectionSetup(window, url) {
+    DEBUG_LOG('# PresentationConnectionManager._connectionSetup');
+    return new Promise(function(resolve, reject) {
+      // Set a defaultRequest for presntation
+      window.navigator.presentation.defaultRequest = new window.PresentationRequest(url);
+
+      // Get available devices
+      window.navigator.presentation.defaultRequest.getAvailability()
+      .then(function(availability) {
+        // availability.value may be kept up-to-date by the controlling UA as long
+        // as the availability object is alive. It is advised for the web developers
+        // to discard the object as soon as it's not needed.
+        DEBUG_LOG('-*-  getAvailability() >> successfully >> value: ' + availability.value);
+
+        availability.onchange = function() {
+          DEBUG_LOG('!!! getAvailability.onchange');
+          _handleAvailabilityChange(availability.value);
+        };
+
+        resolve(availability.value);
+      }, function(error){
+        DEBUG_LOG('-*- getAvailability() >> fail!');
+        DEBUG_LOG(error);
+        reject(error);
+      });
+    });
+  }
+
+  function _startConnection(window) {
+    DEBUG_LOG('# PresentationConnectionManager._startConnection');
+    return new Promise(function(resolve, reject) {
+      // Set callback fired when connection is available
+      DEBUG_LOG('  >> set callback...');
+      window.navigator.presentation.defaultRequest.onconnectionavailable = function(evt) {
+        DEBUG_LOG('-*- navigator.presentation.defaultRequest.onconnectionavailable!');
+        window.navigator.presentation.defaultRequest.onconnectionavailable = null;
+        if (evt.connection && evt.connection.id && evt.connection.state == "connected") {
+          DEBUG_LOG('  >> Connected!');
+          _connection = evt.connection;
+          resolve();
+        } else {
+          reject('connection is unavailable!');
+        }
+      };
+
+      // Start this connection
+      DEBUG_LOG('  >> start connecting....');
+      window.navigator.presentation.defaultRequest.start();
+    });
+  }
+
+  function _disconnect() {
+    DEBUG_LOG('# PresentationConnectionManager._disconnect');
+    return new Promise(function(resolve, reject) {
+      // Set callback fired when connection is terminated
+      _connection.onstatechange = function() {
+        _connection.onstatechange = null;
+        if (_connection && _connection.state == "terminated") {
+          resolve();
+        } else {
+          reject('connection state isn\'t terminated!');
+        }
+      };
+
+      // Terminate this connection
+      _connection.terminate();
+    });
+  }
+
+  // function _promiseActions(window, url) {
+  //   var actions = [];
+  // }
+
+  function buildConnection(window, url) {
+    DEBUG_LOG('# PresentationConnectionManager.buildConnection');
+    _connectionSetup(window, url).then(function(val) {
+      DEBUG_LOG('  >> after then: ' + val);
+      _startConnection(window);
+    }).catch(function(error) {
+      DEBUG_LOG(error);
+    });
+  }
+
+  function init(window) {
+    DEBUG_LOG('# PresentationConnectionManager.init');
+
+    if (!window.navigator.presentation) {
+      DEBUG_LOG('  >> navigator.presentation should be available');
+      return;
+    }
+
+    // Check the preferences and permissions for presentation API
+    if (!window.PresentationRequest) {
+      DEBUG_LOG('  >> PresentationRequest should be available');
+      return;
+    }
+
+    if (window.navigator.presentation.defaultRequest) {
+      DEBUG_LOG('  >> navigator.presentation.defaultRequest is already turned-on');
+      return;
+    }
+  }
+
+  function uninit() {
+    DEBUG_LOG('# PresentationConnectionManager.uninit');
+  }
+
+  return {
+    init: init,
+    uninit: uninit,
+    connect : buildConnection,
+  };
+};
+
+// var PresentationManager = function() {
+//
+//   var deviceManager = null;
+//   var connectionManager = null;
+//
+//   function init(window) {
+//     DEBUG_LOG('# PresentationManager.init');
+//
+//     if (!deviceManager) {
+//       DEBUG_LOG('  >> Create a PresentationDeviceManager');
+//       deviceManager = new PresentationDeviceManager();
+//       deviceManager.init(window);
+//     }
+//
+//     if (!connectionManager) {
+//       DEBUG_LOG('  >> Create a PresentationConnectionManager');
+//       connectionManager = new PresentationConnectionManager();
+//       connectionManager.init(window);
+//     }
+//   }
+//
+//   function uninit(window) {
+//     DEBUG_LOG('# PresentationManager.uninit');
+//
+//     if (deviceManager) {
+//       deviceManager.uninit(window);
+//     }
+//
+//     if (connectionManager) {
+//       connectionManager.uninit();
+//     }
+//   }
+//
+//   function getConnectionManager() {
+//     return connectionManager;
+//   }
+//
+//   return {
+//     init: init,
+//     uninit: uninit,
+//     getConnectionManager: getConnectionManager
+//   };
+// };
+
+function PresentationManager() {
+  this.deviceManager = null;
+  this.connectionManager = null;
+}
+
+PresentationManager.prototype = {
+  init: function(window) {
+    if (!this.deviceManager) {
+      DEBUG_LOG('  >> Create a PresentationDeviceManager');
+      this.deviceManager = new PresentationDeviceManager();
+      this.deviceManager.init(window);
+    }
+
+    if (!this.connectionManager) {
+      DEBUG_LOG('  >> Create a PresentationConnectionManager');
+      this.connectionManager = new PresentationConnectionManager();
+      this.connectionManager.init(window);
+    }
+  },
+
+  uninit: function(window) {
+    if (this.deviceManager) {
+      this.deviceManager.uninit(window);
+    }
+
+    if (this.connectionManager) {
+      this.connectionManager.uninit();
+    }
+  }
+};
+
+
+function initPresentationManagerForWindow(window) {
+  DEBUG_LOG('$$$ initPresentationManagerForWindow');
+
+  if (!window.hasOwnProperty('presentationManager')) {
+    DEBUG_LOG('  >> Create PresentationManager for this window');
+    window.presentationManager = new PresentationManager();
+    window.presentationManager.init(window);
   }
 }
 
-function uninitPresentationDeviceManagerForWindow(window) {
-  DEBUG_LOG('$$$ uninitPresentationDeviceManagerForWindow');
-  if (window.hasOwnProperty('presentationDeviceManager')) {
-    DEBUG_LOG('  >> Delete PresentationDeviceManager for this window');
-    window.presentationDeviceManager.uninit();
-    delete window.presentationDeviceManager;
+function uninitPresentationManagerForWindow(window) {
+  DEBUG_LOG('$$$ uninitPresentationManagerForWindow');
+  if (window.hasOwnProperty('presentationManager')) {
+    DEBUG_LOG('  >> Delete PresentationManager for this window');
+    window.presentationManager.uninit();
+    delete window.presentationManager;
   }
 }
 
@@ -411,7 +607,6 @@ var CastingManager = function() {
 
     function _getCurrentURL(window) {
       DEBUG_LOG('# CastingManager._getCurrentURL');
-      DEBUG_LOG(window);
       return window.BrowserApp.selectedBrowser.currentURI.spec;
     }
 
@@ -420,6 +615,14 @@ var CastingManager = function() {
       DEBUG_LOG(target);
       var currentURL = _getCurrentURL(window);
       window.alert('TODO: Cast video from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
+      // if (window.presentationManager) {
+      //   // cast video here...
+      //   window.presentationManager.getConnectionManager().connect(window, currentURL);
+      // }
+      if (window.presentationManager && window.presentationManager.connectionManager) {
+        // cast video here...
+        window.presentationManager.connectionManager.connect(window, currentURL);
+      }
     }
 
     function _castWebpage(window, target) {
@@ -577,17 +780,19 @@ var CastingManager = function() {
       }
     }
 
+    function _removePageAction() {
+      if (_pageActionId) {
+        DEBUG_LOG('  >> Remove existing PageActionIcon!');
+        PageActions.remove(_pageActionId);
+        _pageActionId = null;
+      }
+    }
+
     function updatePageAction(window) {
       DEBUG_LOG('# CastingManager.updatePageAction');
       if (!_shouldCast(window)) {
         DEBUG_LOG('  >> no need to cast!');
-
-        if (_pageActionId) {
-          DEBUG_LOG('  >> Remove existing PageActionIcon!');
-          PageActions.remove(_pageActionId);
-          _pageActionId = null;
-        }
-
+        _removePageAction();
         return;
       }
 
@@ -611,6 +816,7 @@ var CastingManager = function() {
 
     function uninit(window) {
       DEBUG_LOG('# CastingManager.uninit');
+      _removePageAction();
       window.removeEventListener('DOMContentLoaded', _handleEvent);
       window.removeEventListener('visibilitychange', _handleEvent);
     }
@@ -651,8 +857,8 @@ function loadIntoWindow(window) {
   window.name = GET_UNIQUE_ID();
   DEBUG_LOG('  >> window.name: ' + window.name);
 
-  // Initialize PresentationDeviceManager for this window
-  initPresentationDeviceManagerForWindow(window);
+  // Initialize PresentationManager for this window
+  initPresentationManagerForWindow(window);
 
   // For Debug: Add a force-discovery into menu
   gDiscoveryMenuId = window.NativeWindow.menu.add("Discovery Devices", null, function() { discoveryDevices(window); });
@@ -661,8 +867,8 @@ function loadIntoWindow(window) {
 function unloadFromWindow(window) {
   DEBUG_LOG('### unloadFromWindow');
 
-  // Remove PresentationDeviceManager from this window
-  uninitPresentationDeviceManagerForWindow(window);
+  // Remove PresentationManager from this window
+  uninitPresentationManagerForWindow(window);
 
   // Remove CastingManager from this window
   uninitCastingManagerForWindow(window);
