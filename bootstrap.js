@@ -455,79 +455,44 @@ var PresentationConnectionManager = function() {
   };
 };
 
-// var PresentationManager = function() {
-//
-//   var deviceManager = null;
-//   var connectionManager = null;
-//
-//   function init(window) {
-//     DEBUG_LOG('# PresentationManager.init');
-//
-//     if (!deviceManager) {
-//       DEBUG_LOG('  >> Create a PresentationDeviceManager');
-//       deviceManager = new PresentationDeviceManager();
-//       deviceManager.init(window);
-//     }
-//
-//     if (!connectionManager) {
-//       DEBUG_LOG('  >> Create a PresentationConnectionManager');
-//       connectionManager = new PresentationConnectionManager();
-//       connectionManager.init(window);
-//     }
-//   }
-//
-//   function uninit(window) {
-//     DEBUG_LOG('# PresentationManager.uninit');
-//
-//     if (deviceManager) {
-//       deviceManager.uninit(window);
-//     }
-//
-//     if (connectionManager) {
-//       connectionManager.uninit();
-//     }
-//   }
-//
-//   function getConnectionManager() {
-//     return connectionManager;
-//   }
-//
-//   return {
-//     init: init,
-//     uninit: uninit,
-//     getConnectionManager: getConnectionManager
-//   };
-// };
+var PresentationManager = function() {
 
-function PresentationManager() {
-  this.deviceManager = null;
-  this.connectionManager = null;
-}
+  var _deviceManager = null;
 
-PresentationManager.prototype = {
-  init: function(window) {
-    if (!this.deviceManager) {
-      DEBUG_LOG('  >> Create a PresentationDeviceManager');
-      this.deviceManager = new PresentationDeviceManager();
-      this.deviceManager.init(window);
+  var presMgr = {
+    connectionManager: null,
+
+    init: function(window) {
+      DEBUG_LOG('# PresentationManager.init');
+
+      if (!_deviceManager) {
+        DEBUG_LOG('  >> Create a PresentationDeviceManager');
+        _deviceManager = new PresentationDeviceManager();
+        _deviceManager.init(window);
+      }
+
+      if (!this.connectionManager) {
+        DEBUG_LOG('  >> Create a PresentationConnectionManager');
+        this.connectionManager = new PresentationConnectionManager();
+        this.connectionManager.init(window);
+      }
+    },
+
+    uninit: function(window) {
+      DEBUG_LOG('# PresentationManager.uninit');
+
+      if (_deviceManager) {
+        _deviceManager.uninit(window);
+      }
+
+      if (this.connectionManager) {
+        this.connectionManager.uninit();
+        this.connectionManager = null;
+      }
     }
+  };
 
-    if (!this.connectionManager) {
-      DEBUG_LOG('  >> Create a PresentationConnectionManager');
-      this.connectionManager = new PresentationConnectionManager();
-      this.connectionManager.init(window);
-    }
-  },
-
-  uninit: function(window) {
-    if (this.deviceManager) {
-      this.deviceManager.uninit(window);
-    }
-
-    if (this.connectionManager) {
-      this.connectionManager.uninit();
-    }
-  }
+  return presMgr;
 };
 
 
