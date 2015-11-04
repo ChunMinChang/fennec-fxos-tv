@@ -25,8 +25,6 @@ we should have only one device-list, PresentationDevices, because we just have o
     - Presentation API now can't know what services the devices provide before building connection
   - Add a small icon to video tag when there is compatible device nearby
   - Survey how to show submenu in prompt.js
-  - Error: __The operation failed for an operation-specific reason__ occur when
-    _startConnection_ is called!
   - Consider a better way to use PresentationManager
     - PresentationDeviceManager
     - PresentationConnectionManager
