@@ -34,7 +34,6 @@ XPCOMUtils.defineLazyGetter(this, "Helper", function() {
 });
 
 
-
 /*
  * Utils
  * ==================================
@@ -252,6 +251,11 @@ const PresentationDevices = (function () {
 
 var PresentationDeviceManager = function() {
 
+  function deviceAvailable() {
+    DEBUG_LOG('# PresentationDeviceManager.deviceAvailable: ' + (PresentationDevices.getList().length > 0));
+    return PresentationDevices.getList().length > 0;
+  }
+
   function _handleEvent(evt) {
     DEBUG_LOG('# PresentationDeviceManager._handleEvent: ' + evt.detail.type);
     DEBUG_LOG(evt);
@@ -329,99 +333,132 @@ var PresentationDeviceManager = function() {
   return {
     init: init,
     uninit: uninit,
+    deviceAvailable: deviceAvailable
   };
 };
 
 var PresentationConnectionManager = function() {
 
-  // var _request = null;
-  var _connection = null;
+  var _session = null;
 
-  function _handleAvailabilityChange(availability) {
-    DEBUG_LOG('# PresentationConnectionManager._handleAvailabilityChange: ' + availability);
-  }
+  var _presObserver = {
+    presentationRequest: null,
 
-  function _connectionSetup(window, url) {
-    DEBUG_LOG('# PresentationConnectionManager._connectionSetup');
-    return new Promise(function(resolve, reject) {
-      // Set a defaultRequest for presntation
-      window.navigator.presentation.defaultRequest = new window.PresentationRequest(url);
+    observe: function (subject, topic, data) {
+      DEBUG_LOG('$$$ PresentationConnectionManager._presObserver: ' + topic);
+      switch(topic) {
+        case "presentation-prompt-ready":
+          if (this.presentationRequest) {
+            DEBUG_LOG('  >> start presentation request.....');
+            this.presentationRequest.start().then(function(session){
+              DEBUG_LOG('  >> get session!');
+              DEBUG_LOG(session);
+              if (session.id && session.state == "connected") {
+                DEBUG_LOG('Build connection successfully!');
+              }
+            });
+          }
+          break;
+        default:
+          break;
+      }
+    }
+  };
 
-      // Get available devices
-      window.navigator.presentation.defaultRequest.getAvailability()
-      .then(function(availability) {
-        // availability.value may be kept up-to-date by the controlling UA as long
-        // as the availability object is alive. It is advised for the web developers
-        // to discard the object as soon as it's not needed.
-        DEBUG_LOG('-*-  getAvailability() >> successfully >> value: ' + availability.value);
-
-        availability.onchange = function() {
-          DEBUG_LOG('!!! getAvailability.onchange');
-          _handleAvailabilityChange(availability.value);
-        };
-
-        resolve(availability.value);
-      }, function(error){
-        DEBUG_LOG('-*- getAvailability() >> fail!');
-        DEBUG_LOG(error);
-        reject(error);
-      });
-    });
-  }
-
-  function _startConnection(window) {
-    DEBUG_LOG('# PresentationConnectionManager._startConnection');
-    return new Promise(function(resolve, reject) {
-      // Set callback fired when connection is available
-      DEBUG_LOG('  >> set callback...');
-      window.navigator.presentation.defaultRequest.onconnectionavailable = function(evt) {
-        DEBUG_LOG('-*- navigator.presentation.defaultRequest.onconnectionavailable!');
-        window.navigator.presentation.defaultRequest.onconnectionavailable = null;
-        if (evt.connection && evt.connection.id && evt.connection.state == "connected") {
-          DEBUG_LOG('  >> Connected!');
-          _connection = evt.connection;
-          resolve();
-        } else {
-          reject('connection is unavailable!');
-        }
-      };
-
-      // Start this connection
-      DEBUG_LOG('  >> start connecting....');
-      window.navigator.presentation.defaultRequest.start();
-    });
-  }
-
-  function _disconnect() {
-    DEBUG_LOG('# PresentationConnectionManager._disconnect');
-    return new Promise(function(resolve, reject) {
-      // Set callback fired when connection is terminated
-      _connection.onstatechange = function() {
-        _connection.onstatechange = null;
-        if (_connection && _connection.state == "terminated") {
-          resolve();
-        } else {
-          reject('connection state isn\'t terminated!');
-        }
-      };
-
-      // Terminate this connection
-      _connection.terminate();
-    });
-  }
+  // function _handleAvailabilityChange(availability) {
+  //   DEBUG_LOG('# PresentationConnectionManager._handleAvailabilityChange: ' + availability);
+  // }
+  //
+  // function _connectionSetup(window, url) {
+  //   DEBUG_LOG('# PresentationConnectionManager._connectionSetup');
+  //   return new Promise(function(resolve, reject) {
+  //     // Set a defaultRequest for presntation
+  //     window.navigator.presentation.defaultRequest = new window.PresentationRequest(url);
+  //
+  //     // Get available devices
+  //     window.navigator.presentation.defaultRequest.getAvailability()
+  //     .then(function(availability) {
+  //       // availability.value may be kept up-to-date by the controlling UA as long
+  //       // as the availability object is alive. It is advised for the web developers
+  //       // to discard the object as soon as it's not needed.
+  //       DEBUG_LOG('-*-  getAvailability() >> successfully >> value: ' + availability.value);
+  //
+  //       availability.onchange = function() {
+  //         DEBUG_LOG('!!! getAvailability.onchange');
+  //         _handleAvailabilityChange(availability.value);
+  //       };
+  //
+  //       resolve(availability.value);
+  //     }, function(error){
+  //       DEBUG_LOG('-*- getAvailability() >> fail!');
+  //       DEBUG_LOG(error);
+  //       reject(error);
+  //     });
+  //   });
+  // }
+  //
+  // function _startConnection(window) {
+  //   DEBUG_LOG('# PresentationConnectionManager._startConnection');
+  //   return new Promise(function(resolve, reject) {
+  //     // Set callback fired when connection is available
+  //     DEBUG_LOG('  >> set callback...');
+  //     window.navigator.presentation.defaultRequest.onconnectionavailable = function(evt) {
+  //       DEBUG_LOG('-*- navigator.presentation.defaultRequest.onconnectionavailable!');
+  //       window.navigator.presentation.defaultRequest.onconnectionavailable = null;
+  //       if (evt.connection && evt.connection.id && evt.connection.state == "connected") {
+  //         DEBUG_LOG('  >> Connected!');
+  //         _connection = evt.connection;
+  //         resolve();
+  //       } else {
+  //         reject('connection is unavailable!');
+  //       }
+  //     };
+  //
+  //     // Start this connection
+  //     DEBUG_LOG('  >> start connecting....');
+  //     window.navigator.presentation.defaultRequest.start();
+  //   });
+  // }
+  //
+  // function _disconnect() {
+  //   DEBUG_LOG('# PresentationConnectionManager._disconnect');
+  //   return new Promise(function(resolve, reject) {
+  //     // Set callback fired when connection is terminated
+  //     _connection.onstatechange = function() {
+  //       _connection.onstatechange = null;
+  //       if (_connection && _connection.state == "terminated") {
+  //         resolve();
+  //       } else {
+  //         reject('connection state isn\'t terminated!');
+  //       }
+  //     };
+  //
+  //     // Terminate this connection
+  //     _connection.terminate();
+  //   });
+  // }
 
   // function _promiseActions(window, url) {
   //   var actions = [];
   // }
 
-  function buildConnection(window, url) {
+  function buildConnection(window, url, target) {
     DEBUG_LOG('# PresentationConnectionManager.buildConnection');
-    _connectionSetup(window, url).then(function(val) {
-      DEBUG_LOG('  >> after then: ' + val);
-      _startConnection(window);
-    }).catch(function(error) {
-      DEBUG_LOG(error);
-    });
+
+    // _connectionSetup(window, url).then(function(val) {
+    //   DEBUG_LOG('  >> after then: ' + val);
+    //   _startConnection(window);
+    // }).catch(function(error) {
+    //   DEBUG_LOG(error);
+    // });
+
+    let prompt = Cc["@mozilla.org/presentation-device/prompt;1"].getService(Ci.nsIObserver);
+    Services.obs.addObserver(prompt, "presentation-select-device", false);
+
+    Services.obs.addObserver(_presObserver, "presentation-prompt-ready", false);
+    _presObserver.presentationRequest = new window.PresentationRequest(url);
+
+    Services.obs.notifyObservers(null, "presentation-select-device", target.id);
   }
 
   function init(window) {
@@ -455,45 +492,82 @@ var PresentationConnectionManager = function() {
   };
 };
 
-var PresentationManager = function() {
+function PresentationManager() {}
 
-  var _deviceManager = null;
+PresentationManager.prototype = {
+  connectionManager: null,
+  deviceManager: null,
 
-  var presMgr = {
-    connectionManager: null,
+  init: function(window) {
+    DEBUG_LOG('# PresentationManager.init');
 
-    init: function(window) {
-      DEBUG_LOG('# PresentationManager.init');
-
-      if (!_deviceManager) {
-        DEBUG_LOG('  >> Create a PresentationDeviceManager');
-        _deviceManager = new PresentationDeviceManager();
-        _deviceManager.init(window);
-      }
-
-      if (!this.connectionManager) {
-        DEBUG_LOG('  >> Create a PresentationConnectionManager');
-        this.connectionManager = new PresentationConnectionManager();
-        this.connectionManager.init(window);
-      }
-    },
-
-    uninit: function(window) {
-      DEBUG_LOG('# PresentationManager.uninit');
-
-      if (_deviceManager) {
-        _deviceManager.uninit(window);
-      }
-
-      if (this.connectionManager) {
-        this.connectionManager.uninit();
-        this.connectionManager = null;
-      }
+    if (!this.deviceManager) {
+      DEBUG_LOG('  >> Create a PresentationDeviceManager');
+      this.deviceManager = new PresentationDeviceManager();
+      this.deviceManager.init(window);
     }
-  };
 
-  return presMgr;
+    if (!this.connectionManager) {
+      DEBUG_LOG('  >> Create a PresentationConnectionManager');
+      this.connectionManager = new PresentationConnectionManager();
+      this.connectionManager.init(window);
+    }
+  },
+
+  uninit:function(window) {
+    DEBUG_LOG('# PresentationManager.uninit');
+
+    if (this.deviceManager) {
+      this.deviceManager.uninit(window);
+      this.deviceManager = null;
+    }
+
+    if (this.connectionManager) {
+      this.connectionManager.uninit();
+      this.connectionManager = null;
+    }
+  },
 };
+
+// var PresentationManager = function() {
+//
+//   var _deviceManager = null;
+//
+//   var presMgr = {
+//     connectionManager: null,
+//
+//     init: function(window) {
+//       DEBUG_LOG('# PresentationManager.init');
+//
+//       if (!_deviceManager) {
+//         DEBUG_LOG('  >> Create a PresentationDeviceManager');
+//         _deviceManager = new PresentationDeviceManager();
+//         _deviceManager.init(window);
+//       }
+//
+//       if (!this.connectionManager) {
+//         DEBUG_LOG('  >> Create a PresentationConnectionManager');
+//         this.connectionManager = new PresentationConnectionManager();
+//         this.connectionManager.init(window);
+//       }
+//     },
+//
+//     uninit: function(window) {
+//       DEBUG_LOG('# PresentationManager.uninit');
+//
+//       if (_deviceManager) {
+//         _deviceManager.uninit(window);
+//       }
+//
+//       if (this.connectionManager) {
+//         this.connectionManager.uninit();
+//         this.connectionManager = null;
+//       }
+//     }
+//   };
+//
+//   return presMgr;
+// };
 
 
 function initPresentationManagerForWindow(window) {
@@ -580,13 +654,9 @@ var CastingManager = function() {
       DEBUG_LOG(target);
       var currentURL = _getCurrentURL(window);
       window.alert('TODO: Cast video from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
-      // if (window.presentationManager) {
-      //   // cast video here...
-      //   window.presentationManager.getConnectionManager().connect(window, currentURL);
-      // }
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // cast video here...
-        window.presentationManager.connectionManager.connect(window, currentURL);
+        window.presentationManager.connectionManager.connect(window, currentURL, target);
       }
     }
 
@@ -616,9 +686,10 @@ var CastingManager = function() {
       var currentURL = _getCurrentURL(window);
       var validURL = currentURL.includes('http://') || currentURL.includes('https://');
       DEBUG_LOG('  >> validURL: ' + validURL);
-      var devicesFound = PresentationDevices.getList().length > 0;
-      DEBUG_LOG('  >> devicesFound: ' + devicesFound);
-      return validURL && devicesFound;
+      // var devicesFound = PresentationDevices.getList().length > 0;
+      // DEBUG_LOG('  >> devicesFound: ' + devicesFound);
+      // return validURL && devicesFound;
+      return validURL && window.presentationManager.deviceManager.deviceAvailable();
     }
 
     function _setPageActionIcon(window) {
