@@ -20,7 +20,6 @@ we should have only one device-list, PresentationDevices, because we just have o
 
 ## TODO:
 - bootstrap.js
-  - visibilitychange is also fired before tab is switching, it's annoyed
   - Change the service-list dynamically by webpage content and devices' services
     - Presentation API now can't know what services the devices provide before building connection
   - Add a small icon to video tag when there is compatible device nearby
@@ -28,3 +27,4 @@ we should have only one device-list, PresentationDevices, because we just have o
   - Consider a better way to use PresentationManager
     - PresentationDeviceManager
     - PresentationConnectionManager
+  - Consider a general archi for four use cases

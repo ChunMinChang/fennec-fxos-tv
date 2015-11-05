@@ -42,8 +42,13 @@ function DEBUG_LOG(msg) {
   console.log(msg);
 }
 
-function GET_UNIQUE_ID() {
-  return Date.now();
+// function GET_UNIQUE_ID() {
+//   return Date.now();
+// }
+
+function GetRecentWindow() {
+	let window = Services.wm.getMostRecentWindow("navigator:browser");
+	return window;
 }
 
 // For Debug
@@ -219,7 +224,7 @@ const PresentationDevices = (function () {
 //
 //   handleEvent: function(evt) {
 //     DEBUG_LOG('# PresentationDeviceManager.handleEvent: ' + evt.detail.type);
-//     switch(evt.detail.type) {
+//     switch (evt.detail.type) {
 //       case 'add':
 //         PresentationDevices.add(evt.detail.deviceInfo);
 //         // If this is the first device, then we need to
@@ -265,7 +270,7 @@ var PresentationDeviceManager = function() {
   function _handleEvent(evt) {
     DEBUG_LOG('# PresentationDeviceManager._handleEvent: ' + evt.detail.type);
     DEBUG_LOG(evt);
-    switch(evt.detail.type) {
+    switch (evt.detail.type) {
       case 'add':
         PresentationDevices.add(evt.detail.deviceInfo);
         // If this is the first device, then we need to
@@ -348,28 +353,64 @@ var PresentationDeviceManager = function() {
 // ----------------------
 var PresentationConnectionManager = function() {
 
-  var _session = null;
-
-  var _presObserver = {
-    callback: null,
-
-    observe: function (subject, topic, data) {
-      DEBUG_LOG('$$$ PresentationConnectionManager._presObserver: ' + topic);
-      switch(topic) {
-        case "presentation-prompt-ready":
-          if (this.callback) {
-            DEBUG_LOG('  >> fire callback for \'presentation-prompt-ready\'!');
-            this.callback();
-          }
-          break;
-        default:
-          break;
-      }
-    }
+  var _presentation = {
+    session: null,
+    sessionCloseExpected: false,
+    seq: 0,
   };
 
-  function _presentationPrompt(deviceId) {
+  function _reset() {
+    DEBUG_LOG('# PresentationConnectionManager._reset');
+    _presentation.sessionCloseExpected = false;
+    _presentation.session = null;
+    _presentation.seq = 0;
+  }
+
+  function _presentationOnMessage(evt) {
+    DEBUG_LOG('# PresentationConnectionManager._presentationOnMessage');
+    DEBUG_LOG(evt);
+    DEBUG_LOG(evt.data);
+  }
+
+  function _presentationOnStatechange(evt) {
+    DEBUG_LOG('# PresentationConnectionManager._presentationOnStatechange');
+    DEBUG_LOG(evt);
+    // If the session is terminated by server, then we need to...
+    if (_presentation.session && _presentation.session.state == "terminated") {
+      if (_presentation.sessionCloseExpected) {
+        // Reset the _presentation
+        _reset();
+        DEBUG_LOG('  >> The presentation connection is terminated successfully!');
+      } else {
+        DEBUG_LOG('!!!! The session is killed by server ???');
+      }
+    } else {
+      DEBUG_LOG('!!!! Will this happen?');
+      DEBUG_LOG(_presentation.session);
+      DEBUG_LOG(_presentation.session.state);
+      DEBUG_LOG(_presentation.sessionCloseExpected);
+    }
+  }
+
+  function _presentationPrompt(deviceId, callback) {
     DEBUG_LOG('# PresentationConnectionManager._presentationPrompt');
+
+    let _presObserver = {
+      observe: function (subject, topic, data) {
+        DEBUG_LOG('$$$ PresentationConnectionManager._presObserver: ' + topic);
+        switch (topic) {
+          case "presentation-prompt-ready":
+            if (callback) {
+              DEBUG_LOG('  >> fire callback for \'presentation-prompt-ready\'!');
+              callback();
+            }
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
     // Get presentation-device-prompt XPCOM object
     let prompt = Cc["@mozilla.org/presentation-device/prompt;1"].getService(Ci.nsIObserver);
 
@@ -394,21 +435,59 @@ var PresentationConnectionManager = function() {
       DEBUG_LOG(session);
       if (session.id && session.state == "connected") {
         DEBUG_LOG('Build connection successfully!');
+        _presentation.session = session;
+        _presentation.session.onmessage = _presentationOnMessage;
+        _presentation.session.onstatechange = _presentationOnStatechange;
+        _sendCommand("load", { "url": url });
+        disconnect();
       }
     });
   }
 
-  function buildConnection(window, url, target) {
-    DEBUG_LOG('# PresentationConnectionManager.buildConnection');
-    _presObserver.callback = function() {
-      _startSession(window, url);
+  function _sendCommand(command, data) {
+    DEBUG_LOG('# PresentationConnectionManager._sendCommand');
+    var msg = {
+      'type': command,
+      'seq': ++_presentation.seq
     };
-    _presentationPrompt(target.id);
+
+    if (data) {
+      for (var k in data) {
+        msg[k] = data[k];
+      }
+    }
+    _presentation.session.send(JSON.stringify(msg));
   }
 
-  // function sendCommand() {
-  //   DEBUG_LOG('# PresentationConnectionManager.castVideo');
-  // }
+  function disconnect() {
+    DEBUG_LOG('# PresentationConnectionManager.disconnect');
+    if (_presentation.session) {
+      _presentation.sessionCloseExpected = true;
+      _presentation.session.terminate();
+      // _presentation.session = null;
+    }
+  }
+
+  function _buildConnection(window, url, target) {
+    DEBUG_LOG('# PresentationConnectionManager.buildConnection');
+    var cb = function() {
+      _startSession(window, url);
+    };
+    _presentationPrompt(target.id, cb);
+  }
+
+  function castVideo() {
+    DEBUG_LOG('# PresentationConnectionManager.castVideo');
+  }
+
+  function castWebpage() {
+    DEBUG_LOG('# PresentationConnectionManager.castWebpage');
+  }
+
+  function pinWebpageToHomescreen(window, url, target) {
+    DEBUG_LOG('# PresentationConnectionManager.pinWebpageToHomescreen');
+    _buildConnection(window, url, target);
+  }
 
   function init(window) {
     DEBUG_LOG('# PresentationConnectionManager.init');
@@ -437,7 +516,10 @@ var PresentationConnectionManager = function() {
   return {
     init: init,
     uninit: uninit,
-    connect : buildConnection,
+    castVideo: castVideo,
+    castWebpage: castWebpage,
+    pinWebpageToHomescreen: pinWebpageToHomescreen,
+    disconnect: disconnect
   };
 };
 
@@ -538,13 +620,13 @@ function uninitPresentationManagerForWindow(window) {
 //   _remoteControl: function() {
 //   },
 //
+//   _updatePageAction: function() {
+//   },
+//
 //   init: function() {
 //   },
 //
 //   uninit: function() {
-//   },
-//
-//   updatePageAction: function() {
 //   },
 //
 // };
@@ -566,7 +648,7 @@ var CastingManager = function() {
       window.alert('TODO: Cast video from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // cast video here...
-        window.presentationManager.connectionManager.connect(window, currentURL, target);
+        window.presentationManager.connectionManager.castVideo();
       }
     }
 
@@ -577,6 +659,7 @@ var CastingManager = function() {
       window.alert('TODO: Cast webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // cast webpage here...
+        window.presentationManager.connectionManager.castWebpage();
       }
     }
 
@@ -587,6 +670,7 @@ var CastingManager = function() {
       window.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // pin webpage to home here...
+        window.presentationManager.connectionManager.pinWebpageToHomescreen(window, currentURL, target);
       }
     }
 
@@ -603,6 +687,40 @@ var CastingManager = function() {
       var validURL = currentURL.includes('http://') || currentURL.includes('https://');
       return validURL && window.presentationManager.deviceManager.deviceAvailable();
     }
+
+    // TODO: Find where to add 'mozAllowCasting' into video tag
+    // https://dxr.mozilla.org/mozilla-central/source/mobile/android/chrome/content/browser.js#4341
+    function _findCastableVideo(browser) {
+      DEBUG_LOG('# CastingManager._findCastableVideo');
+      if (!browser) {
+        return null;
+      }
+
+      // Scan for a <video> being actively cast. Also look for a castable <video>
+      // on the page.
+      let castableVideo = null;
+      let videos = browser.contentDocument.querySelectorAll("video");
+      DEBUG_LOG(videos);
+      for (let video of videos) {
+        DEBUG_LOG(video);
+        if (video.mozIsCasting) {
+          // This <video> is cast-active. Break out of loop.
+          return video;
+        }
+
+        DEBUG_LOG(video.paused);
+        DEBUG_LOG(video.mozAllowCasting);
+        if (!video.paused && video.mozAllowCasting) {
+          // This <video> is cast-ready. Keep looking so cast-active could be found.
+          castableVideo = video;
+        }
+      }
+
+      // Could be null
+      DEBUG_LOG(castableVideo);
+      return castableVideo;
+    }
+
 
     function _setPageActionIcon(window) {
       DEBUG_LOG('# CastingManager._setPageActionIcon');
@@ -663,6 +781,8 @@ var CastingManager = function() {
 
     function _promptInfoGenerator(window) {
       DEBUG_LOG('# CastingManager._promptInfoGenerator');
+      var videoCastable = _findCastableVideo(window.BrowserApp.selectedBrowser);
+
       // Prompt menu
       var menu = [];
 
@@ -681,7 +801,7 @@ var CastingManager = function() {
         menu.push({ label: devices[i].name, header: true });
         ++key;
 
-        if (devices[i].castVideoEnabled) {
+        if (devices[i].castVideoEnabled && videoCastable) {
           menu.push({ label: Strings.GetStringFromName("prompt.sendVideo") });
           callbacks[key] = _castVideo;
           targetDevices[key] = devices[i];
@@ -714,14 +834,30 @@ var CastingManager = function() {
     }
 
     function _handleEvent(evt) {
-      DEBUG_LOG('# CastingManager._handleEvent');
-      switch(evt.type) {
-        case 'DOMContentLoaded':
-          DEBUG_LOG(' >> DOMContentLoaded');
+      DEBUG_LOG('# CastingManager._handleEvent: ' + evt.type);
+      DEBUG_LOG(evt);
+      switch (evt.type) {
         case 'visibilitychange':
           DEBUG_LOG(' >> visibilitychange');
-          updatePageAction(evt.currentTarget); // current target is window!
+        case 'DOMContentLoaded':
+          DEBUG_LOG(' >> DOMContentLoaded');
+          _updatePageAction(evt.currentTarget); // current target is dom window!
           break;
+        case 'pageshow': {
+          DEBUG_LOG(' >> pageshow');
+          // let domWindow = GetRecentWindow();
+          let domWindow = evt.currentTarget;
+          let tab = domWindow.BrowserApp.getTabForWindow(evt.originalTarget.defaultView);
+          _updatePageActionForTab(domWindow, tab);
+          break;
+        }
+        case 'TabSelect': {
+          DEBUG_LOG('TabSelect');
+          let domWindow = evt.view; //evt.view is ChromeWindow!
+          let tab = domWindow.BrowserApp.getTabForBrowser(evt.target);
+          _updatePageActionForTab(domWindow, tab);
+          break;
+        }
         default:
           DEBUG_LOG('!!!!! Unexpected error: No event handler for this type');
           break;
@@ -736,8 +872,19 @@ var CastingManager = function() {
       }
     }
 
-    function updatePageAction(window) {
-      DEBUG_LOG('# CastingManager.updatePageAction');
+    function _updatePageActionForTab(window, tab) {
+      DEBUG_LOG('# CastingManager._updatePageActionForTab');
+      // We only care about events on the selected tab
+      if (tab != window.BrowserApp.selectedTab) {
+        return;
+      }
+
+      // Update the page action, scanning for a castable <video>
+      _updatePageAction(window);
+    }
+
+    function _updatePageAction(window) {
+      DEBUG_LOG('# CastingManager._updatePageAction');
       if (!_shouldCast(window)) {
         DEBUG_LOG('  >> no need to cast!');
         _removePageAction();
@@ -752,14 +899,21 @@ var CastingManager = function() {
       _setPageActionIcon(window);
 
       // Reload pageActionIcon in URL bar after page has been loaded
-      window.addEventListener('DOMContentLoaded', _handleEvent, false);
+      // window.addEventListener('DOMContentLoaded', _handleEvent, false);
 
       // Reload pageActionIcon after tab has been switched
       // TODO: visibilitychange is also fired before tab is switching, it's annoyed
-      window.addEventListener('visibilitychange', _handleEvent, false);
+      // window.addEventListener('visibilitychange', _handleEvent, false);
+
+      window.BrowserApp.deck.addEventListener("TabSelect", _handleEvent, true);
+      // window.BrowserApp.deck.addEventListener("pageshow", _handleEvent, true);
+      window.addEventListener("pageshow", _handleEvent, true);
+
+      // window.addEventListener("VideoBindingAttached", _handleEvent, true);
+      // window.BrowserApp.deck.addEventListener("VideoBindingAttached", _handleEvent, true);
 
       // Add pageActionIcon to URL bar if it need
-      updatePageAction(window);
+      _updatePageAction(window);
     }
 
     function uninit(window) {
@@ -772,7 +926,6 @@ var CastingManager = function() {
     return {
       init: init,
       uninit: uninit,
-      update: updatePageAction
     };
 };
 
@@ -802,8 +955,8 @@ function uninitCastingManagerForWindow(window) {
 function loadIntoWindow(window) {
   DEBUG_LOG('### loadIntoWindow: ');
   // Set an unique id to window's name
-  window.name = GET_UNIQUE_ID();
-  DEBUG_LOG('  >> window.name: ' + window.name);
+  // window.name = GET_UNIQUE_ID();
+  // DEBUG_LOG('  >> window.name: ' + window.name);
 
   // Initialize PresentationManager for this window
   initPresentationManagerForWindow(window);
