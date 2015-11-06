@@ -263,8 +263,19 @@ const PresentationDevices = (function () {
 var PresentationDeviceManager = function() {
 
   function deviceAvailable() {
-    DEBUG_LOG('# PresentationDeviceManager.deviceAvailable: ' + (PresentationDevices.getList().length > 0));
-    return PresentationDevices.getList().length > 0;
+    DEBUG_LOG('# PresentationDeviceManager.deviceAvailable');
+    var available = false;
+    var devs = PresentationDevices.getList();
+    for (var i = 0 ; i < devs.length ; i ++) {
+      available |= devs[i].castVideoEnabled |
+                   devs[i].castPageEnabled |
+                   devs[i].pinPageEnabled |
+                   devs[i].remoteControlEnabled;
+      if (available) {
+        return available;
+      }
+    }
+    return available;
   }
 
   function _handleEvent(evt) {
@@ -427,6 +438,12 @@ var PresentationConnectionManager = function() {
     Services.obs.notifyObservers(null, "presentation-select-device", deviceId);
   }
 
+  function _presentationError(error) {
+    DEBUG_LOG('# PresentationConnectionManager._presentationError');
+    DEBUG_LOG(error);
+    disconnect();
+  }
+
   function _startSession(window, url) {
     DEBUG_LOG('# PresentationConnectionManager._startSession');
     let presentationRequest = new window.PresentationRequest(url);
@@ -434,13 +451,16 @@ var PresentationConnectionManager = function() {
       DEBUG_LOG('  >> get session!');
       DEBUG_LOG(session);
       if (session.id && session.state == "connected") {
-        DEBUG_LOG('Build connection successfully!');
+        DEBUG_LOG('  >> Build connection successfully!');
         _presentation.session = session;
         _presentation.session.onmessage = _presentationOnMessage;
         _presentation.session.onstatechange = _presentationOnStatechange;
         _sendCommand("load", { "url": url });
         disconnect();
       }
+      _presentationError('session.id or session.id is wrong!');
+    }).catch(function(error) {
+      _presentationError(error);
     });
   }
 
@@ -636,6 +656,11 @@ var CastingManager = function() {
     var _pageActionIcon = null,
         _pageActionId = null;
 
+    function _isCastingEnabled() {
+      DEBUG_LOG('# CastingManager._isCastingEnabled');
+      return Services.prefs.getBoolPref("browser.casting.enabled");
+    }
+
     function _getCurrentURL(window) {
       DEBUG_LOG('# CastingManager._getCurrentURL');
       return window.BrowserApp.selectedBrowser.currentURI.spec;
@@ -801,7 +826,7 @@ var CastingManager = function() {
         menu.push({ label: devices[i].name, header: true });
         ++key;
 
-        if (devices[i].castVideoEnabled && videoCastable) {
+        if (videoCastable && devices[i].castVideoEnabled) {
           menu.push({ label: Strings.GetStringFromName("prompt.sendVideo") });
           callbacks[key] = _castVideo;
           targetDevices[key] = devices[i];
@@ -896,18 +921,22 @@ var CastingManager = function() {
 
     function init(window) {
       DEBUG_LOG('# CastingManager.init');
+
+      if (!_isCastingEnabled()) {
+        return;
+      }
+
       _setPageActionIcon(window);
 
       // Reload pageActionIcon in URL bar after page has been loaded
       // window.addEventListener('DOMContentLoaded', _handleEvent, false);
+      // window.BrowserApp.deck.addEventListener("pageshow", _handleEvent, true);
+      window.addEventListener("pageshow", _handleEvent, true);
 
       // Reload pageActionIcon after tab has been switched
       // TODO: visibilitychange is also fired before tab is switching, it's annoyed
       // window.addEventListener('visibilitychange', _handleEvent, false);
-
       window.BrowserApp.deck.addEventListener("TabSelect", _handleEvent, true);
-      // window.BrowserApp.deck.addEventListener("pageshow", _handleEvent, true);
-      window.addEventListener("pageshow", _handleEvent, true);
 
       // window.addEventListener("VideoBindingAttached", _handleEvent, true);
       // window.BrowserApp.deck.addEventListener("VideoBindingAttached", _handleEvent, true);
