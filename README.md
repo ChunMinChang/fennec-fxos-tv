@@ -20,11 +20,11 @@ we should have only one device-list, PresentationDevices, because we just have o
 
 ## TODO:
 - bootstrap.js
-  - Change the service-list dynamically by webpage content and devices' services
-    - Presentation API now can't know what services the devices provide before building connection
-  - Add a small icon to video tag when there is compatible device nearby
-  - Survey how to show submenu in prompt.js
-  - Consider a better way to use PresentationManager
-    - PresentationDeviceManager
-    - PresentationConnectionManager
   - Consider a general archi for four use cases
+  - Define conditions to cast video
+  - UI:
+    - Change the service-list dynamically by webpage content and devices' services
+      - Presentation API now can't know what services the devices provide before building connection
+    - Add a small icon to video tag when there is compatible device nearby
+    - Survey how to show submenu
+    - Survey how to create and overlay a control menu for casting video and remote control

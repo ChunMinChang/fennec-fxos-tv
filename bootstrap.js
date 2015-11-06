@@ -403,39 +403,37 @@ var PresentationConnectionManager = function() {
     }
   }
 
-  function _presentationPrompt(deviceId, callback) {
+  function _presentationPrompt(deviceId) {
     DEBUG_LOG('# PresentationConnectionManager._presentationPrompt');
-
-    let _presObserver = {
-      observe: function (subject, topic, data) {
-        DEBUG_LOG('$$$ PresentationConnectionManager._presObserver: ' + topic);
-        switch (topic) {
-          case "presentation-prompt-ready":
-            if (callback) {
-              DEBUG_LOG('  >> fire callback for \'presentation-prompt-ready\'!');
-              callback();
-            }
-            break;
-          default:
-            break;
-        }
+    return new Promise(function(resolve, reject) {
+      // Get presentation-device-prompt XPCOM object
+      let prompt = Cc["@mozilla.org/presentation-device/prompt;1"].getService(Ci.nsIObserver);
+      if (!prompt) {
+        reject('Cannot get presentationDevicePrompt XPCOM!');
       }
-    };
+      // Add "presentation-select-device" signal listener to
+      // the presentation-device-prompt XPCOM everytime before building a
+      // session because the presentation-device-prompt XPCOM will remove
+      // "presentation-select-device" signal listener after receiving it.
+      Services.obs.addObserver(prompt, "presentation-select-device", false);
 
-    // Get presentation-device-prompt XPCOM object
-    let prompt = Cc["@mozilla.org/presentation-device/prompt;1"].getService(Ci.nsIObserver);
+      let _presObserver = {
+        observe: function (subject, topic, data) {
+          DEBUG_LOG('$$$ PresentationConnectionManager._presObserver: ' + topic);
+          if (topic == "presentation-prompt-ready") {
+            resolve('(PresentationConnectionManager._presentationPrompt) get presentation-prompt-ready singal!');
+          } else {
+            reject('receive unexpected notification');
+          }
+        }
+      };
 
-    // Add "presentation-select-device" signal listener to
-    // the presentation-device-prompt XPCOM everytime before building a
-    // session because the presentation-device-prompt XPCOM will remove
-    // "presentation-select-device" signal listener after receiving it.
-    Services.obs.addObserver(prompt, "presentation-select-device", false);
-
-    // The presentation-device-prompt XPCOM will fire a
-    // "presentation-prompt-ready" signal upon it receive
-    // the "presentation-select-device" signal
-    Services.obs.addObserver(_presObserver, "presentation-prompt-ready", false);
-    Services.obs.notifyObservers(null, "presentation-select-device", deviceId);
+      // The presentation-device-prompt XPCOM will fire a
+      // "presentation-prompt-ready" signal upon it receive
+      // the "presentation-select-device" signal
+      Services.obs.addObserver(_presObserver, "presentation-prompt-ready", false);
+      Services.obs.notifyObservers(null, "presentation-select-device", deviceId);
+    });
   }
 
   function _presentationError(error) {
@@ -446,26 +444,30 @@ var PresentationConnectionManager = function() {
 
   function _startSession(window, url) {
     DEBUG_LOG('# PresentationConnectionManager._startSession');
-    let presentationRequest = new window.PresentationRequest(url);
-    presentationRequest.start().then(function(session){
-      DEBUG_LOG('  >> get session!');
-      DEBUG_LOG(session);
-      if (session.id && session.state == "connected") {
-        DEBUG_LOG('  >> Build connection successfully!');
-        _presentation.session = session;
-        _presentation.session.onmessage = _presentationOnMessage;
-        _presentation.session.onstatechange = _presentationOnStatechange;
-        _sendCommand("load", { "url": url });
-        disconnect();
-      }
-      _presentationError('session.id or session.id is wrong!');
-    }).catch(function(error) {
-      _presentationError(error);
+    return new Promise(function(resolve, reject) {
+      let presentationRequest = new window.PresentationRequest(url);
+      presentationRequest.start().then(function(session){
+        DEBUG_LOG('  >> get session!');
+        DEBUG_LOG(session);
+        if (session.id && session.state == "connected") {
+          DEBUG_LOG('  >> Build connection successfully!');
+          _presentation.session = session;
+          _presentation.session.onmessage = _presentationOnMessage;
+          _presentation.session.onstatechange = _presentationOnStatechange;
+          resolve('(PresentationConnectionManager._startSession) presentation session is built!');
+        } else {
+          _presentationError('session.id or session.state is wrong!');
+          reject('session.id or session.state is wrong!');
+        }
+      }).catch(function(error) {
+        DEBUG_LOG('  >> Build connection failed!');
+        reject(error);
+      });
     });
   }
 
-  function _sendCommand(command, data) {
-    DEBUG_LOG('# PresentationConnectionManager._sendCommand');
+  function sendCommand(command, data) {
+    DEBUG_LOG('# PresentationConnectionManager.sendCommand');
     var msg = {
       'type': command,
       'seq': ++_presentation.seq
@@ -485,28 +487,29 @@ var PresentationConnectionManager = function() {
       _presentation.sessionCloseExpected = true;
       _presentation.session.terminate();
       // _presentation.session = null;
+      if (!_presentation.session.onmessage) {
+        _presentation.session.onmessage = _presentationOnMessage;
+      }
     }
   }
 
-  function _buildConnection(window, url, target) {
-    DEBUG_LOG('# PresentationConnectionManager.buildConnection');
-    var cb = function() {
-      _startSession(window, url);
-    };
-    _presentationPrompt(target.id, cb);
-  }
-
-  function castVideo() {
-    DEBUG_LOG('# PresentationConnectionManager.castVideo');
-  }
-
-  function castWebpage() {
-    DEBUG_LOG('# PresentationConnectionManager.castWebpage');
-  }
-
-  function pinWebpageToHomescreen(window, url, target) {
-    DEBUG_LOG('# PresentationConnectionManager.pinWebpageToHomescreen');
-    _buildConnection(window, url, target);
+  function connect(window, url, target) {
+    DEBUG_LOG('# PresentationConnectionManager.connect');
+    return new Promise(function(resolve, reject) {
+      _presentationPrompt(target.id).then(function(result) {
+        DEBUG_LOG('  >> prompt is ready!');
+        DEBUG_LOG(result);
+        return _startSession(window, url);
+      }).then(function(result) {
+        DEBUG_LOG('  >> session is ready!');
+        DEBUG_LOG(result);
+        resolve(result);
+      }).catch(function(error){
+        DEBUG_LOG('  >> connection failed!');
+        DEBUG_LOG(error);
+        reject(error);
+      });
+    });
   }
 
   function init(window) {
@@ -536,9 +539,8 @@ var PresentationConnectionManager = function() {
   return {
     init: init,
     uninit: uninit,
-    castVideo: castVideo,
-    castWebpage: castWebpage,
-    pinWebpageToHomescreen: pinWebpageToHomescreen,
+    connect: connect,
+    sendCommand: sendCommand,
     disconnect: disconnect
   };
 };
@@ -673,7 +675,6 @@ var CastingManager = function() {
       window.alert('TODO: Cast video from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // cast video here...
-        window.presentationManager.connectionManager.castVideo();
       }
     }
 
@@ -684,7 +685,6 @@ var CastingManager = function() {
       window.alert('TODO: Cast webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // cast webpage here...
-        window.presentationManager.connectionManager.castWebpage();
       }
     }
 
@@ -692,10 +692,19 @@ var CastingManager = function() {
       DEBUG_LOG('# CastingManager._pinWebpageToHomescreen');
       DEBUG_LOG(target);
       var currentURL = _getCurrentURL(window);
-      window.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
+      // window.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // pin webpage to home here...
-        window.presentationManager.connectionManager.pinWebpageToHomescreen(window, currentURL, target);
+        window.presentationManager.connectionManager.connect(window, currentURL, target).then(function(result) {
+          DEBUG_LOG('!!!!! Prepare to pin webpage....');
+          DEBUG_LOG(result);
+          // window.presentationManager.connectionManager.sendCommand("pin", { "url": currentURL });
+          window.presentationManager.connectionManager.disconnect();
+        }).catch(function(error){
+          DEBUG_LOG('!!!!! Fail to pin webpage....');
+          DEBUG_LOG(error);
+          window.presentationManager.connectionManager.disconnect();
+        });
       }
     }
 
@@ -704,6 +713,9 @@ var CastingManager = function() {
       DEBUG_LOG(target);
       var currentURL = _getCurrentURL(window);
       window.alert('TODO: remote control from: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
+      if (window.presentationManager && window.presentationManager.connectionManager) {
+        // remote control to TV here...
+      }
     }
 
     function _shouldCast(window) {
@@ -713,7 +725,8 @@ var CastingManager = function() {
       return validURL && window.presentationManager.deviceManager.deviceAvailable();
     }
 
-    // TODO: Find where to add 'mozAllowCasting' into video tag
+    // TODO: Define conditions to cast video
+    // reference: using 'mozAllowCasting' for video tag
     // https://dxr.mozilla.org/mozilla-central/source/mobile/android/chrome/content/browser.js#4341
     function _findCastableVideo(browser) {
       DEBUG_LOG('# CastingManager._findCastableVideo');
