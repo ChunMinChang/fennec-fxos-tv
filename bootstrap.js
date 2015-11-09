@@ -262,8 +262,8 @@ const PresentationDevices = (function () {
 // ----------------------
 var PresentationDeviceManager = function() {
 
-  function deviceAvailable() {
-    DEBUG_LOG('# PresentationDeviceManager.deviceAvailable');
+  function _deviceavailable() {
+    DEBUG_LOG('# PresentationDeviceManager._deviceAvailable');
     var available = false;
     var devs = PresentationDevices.getList();
     for (var i = 0 ; i < devs.length ; i ++) {
@@ -355,7 +355,9 @@ var PresentationDeviceManager = function() {
   return {
     init: init,
     uninit: uninit,
-    deviceAvailable: deviceAvailable
+    get deviceAvailable() {
+      return _deviceavailable();
+    }
   };
 };
 
@@ -695,8 +697,8 @@ var CastingManager = function() {
       // window.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // pin webpage to home here...
-        // var appUrl = 'app://notification-receiver.gaiamobile.org';
-        var appUrl = 'app://fling-player.gaiamobile.org';
+        var appUrl = 'app://notification-receiver.gaiamobile.org';
+        // var appUrl = 'app://fling-player.gaiamobile.org';
         window.presentationManager.connectionManager.connect(window, /*currentURL*/appUrl, target).then(function(result) {
           DEBUG_LOG('!!!!! Prepare to pin webpage....');
           DEBUG_LOG(result);
@@ -724,7 +726,7 @@ var CastingManager = function() {
       DEBUG_LOG('# CastingManager._shouldCast');
       var currentURL = _getCurrentURL(window);
       var validURL = currentURL.includes('http://') || currentURL.includes('https://');
-      return validURL && window.presentationManager.deviceManager.deviceAvailable();
+      return validURL && window.presentationManager.deviceManager.deviceAvailable;
     }
 
     // TODO: Define conditions to cast video
