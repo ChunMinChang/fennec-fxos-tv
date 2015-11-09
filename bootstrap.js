@@ -695,7 +695,9 @@ var CastingManager = function() {
       // window.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // pin webpage to home here...
-        window.presentationManager.connectionManager.connect(window, currentURL, target).then(function(result) {
+        // var appUrl = 'app://notification-receiver.gaiamobile.org';
+        var appUrl = 'app://fling-player.gaiamobile.org';
+        window.presentationManager.connectionManager.connect(window, /*currentURL*/appUrl, target).then(function(result) {
           DEBUG_LOG('!!!!! Prepare to pin webpage....');
           DEBUG_LOG(result);
           // window.presentationManager.connectionManager.sendCommand("pin", { "url": currentURL });
