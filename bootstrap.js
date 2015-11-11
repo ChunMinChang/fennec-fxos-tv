@@ -552,6 +552,18 @@ var CastingManager = function() {
       window.alert('TODO: Cast webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // cast webpage here...
+        window.presentationManager.connectionManager.connect(window, currentURL, target).then(function(result) {
+          window.NativeWindow.toast.show(Strings.GetStringFromName("toast.request.sent"), "short");
+          DEBUG_LOG('!!!!! Prepare to cast webpage....');
+          DEBUG_LOG(result);
+          // window.presentationManager.connectionManager.sendCommand("cast", { "url": currentURL });
+          window.presentationManager.connectionManager.disconnect();
+        }).catch(function(error){
+          window.NativeWindow.toast.show(Strings.GetStringFromName("toast.request.failed"), "short");
+          DEBUG_LOG('!!!!! Fail to cast webpage....');
+          DEBUG_LOG(error);
+          window.presentationManager.connectionManager.disconnect();
+        });
       }
     }
 
@@ -562,18 +574,6 @@ var CastingManager = function() {
       // window.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // pin webpage to home here...
-        var appUrl = 'app://notification-receiver.gaiamobile.org';
-        // var appUrl = 'app://fling-player.gaiamobile.org';
-        window.presentationManager.connectionManager.connect(window, /*currentURL*/appUrl, target).then(function(result) {
-          DEBUG_LOG('!!!!! Prepare to pin webpage....');
-          DEBUG_LOG(result);
-          // window.presentationManager.connectionManager.sendCommand("pin", { "url": currentURL });
-          window.presentationManager.connectionManager.disconnect();
-        }).catch(function(error){
-          DEBUG_LOG('!!!!! Fail to pin webpage....');
-          DEBUG_LOG(error);
-          window.presentationManager.connectionManager.disconnect();
-        });
       }
     }
 
