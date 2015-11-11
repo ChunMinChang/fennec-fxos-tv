@@ -88,7 +88,7 @@ function discoveryDevices(win) {
 // ----------------------
 const PresentationDevices = (function () {
   DEBUG_LOG('# [PresentationDevices] Immediately invoked!');
-  // presentation device's infomation
+  // Private Basic class for presentation device's infomation
   function DeviceInfo(device) {
     this.id = device.id || 'unidentified';
     this.name = device.name || 'unidentified';
@@ -171,12 +171,13 @@ const PresentationDevices = (function () {
 })();
 
 
+
 // PresentationDeviceManager
 // ----------------------
 var PresentationDeviceManager = function() {
 
-  function _deviceavailable() {
-    DEBUG_LOG('# PresentationDeviceManager._deviceAvailable');
+  function deviceAvailable() {
+    DEBUG_LOG('# PresentationDeviceManager.deviceAvailable');
     var available = false;
     var devs = PresentationDevices.getList();
     for (var i = 0 ; i < devs.length ; i ++) {
@@ -268,9 +269,7 @@ var PresentationDeviceManager = function() {
   return {
     init: init,
     uninit: uninit,
-    get deviceAvailable() {
-      return _deviceavailable();
-    }
+    deviceAvailable: deviceAvailable
   };
 };
 
@@ -401,8 +400,7 @@ var PresentationConnectionManager = function() {
     if (_presentation.session) {
       _presentation.sessionCloseExpected = true;
       _presentation.session.terminate();
-      // _presentation.session will be set to null upon
-      // _presentation.session.state is changed to 'terminated'
+      // _presentation.session = null;
       if (!_presentation.session.onmessage) {
         _presentation.session.onmessage = _presentationOnMessage;
       }
@@ -520,6 +518,7 @@ function uninitPresentationManagerForWindow(window) {
 }
 
 
+
 var CastingManager = function() {
 
     var _pageActionIcon = null,
@@ -549,17 +548,17 @@ var CastingManager = function() {
       DEBUG_LOG('# CastingManager._castWebpage');
       DEBUG_LOG(target);
       var currentURL = _getCurrentURL(window);
-      window.alert('TODO: Cast webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
+      // window.alert('TODO: Cast webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // cast webpage here...
         window.presentationManager.connectionManager.connect(window, currentURL, target).then(function(result) {
-          window.NativeWindow.toast.show(Strings.GetStringFromName("toast.request.sent"), "short");
+          window.NativeWindow.toast.show(Strings.GetStringFromName("toast.request.send"), "short");
           DEBUG_LOG('!!!!! Prepare to cast webpage....');
           DEBUG_LOG(result);
           // window.presentationManager.connectionManager.sendCommand("cast", { "url": currentURL });
           window.presentationManager.connectionManager.disconnect();
         }).catch(function(error){
-          window.NativeWindow.toast.show(Strings.GetStringFromName("toast.request.failed"), "short");
+          window.NativeWindow.toast.show(Strings.GetStringFromName("toast.request.fail"), "short");
           DEBUG_LOG('!!!!! Fail to cast webpage....');
           DEBUG_LOG(error);
           window.presentationManager.connectionManager.disconnect();
@@ -571,7 +570,7 @@ var CastingManager = function() {
       DEBUG_LOG('# CastingManager._pinWebpageToHomescreen');
       DEBUG_LOG(target);
       var currentURL = _getCurrentURL(window);
-      // window.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
+      window.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // pin webpage to home here...
       }
@@ -591,7 +590,7 @@ var CastingManager = function() {
       DEBUG_LOG('# CastingManager._shouldCast');
       var currentURL = _getCurrentURL(window);
       var validURL = currentURL.includes('http://') || currentURL.includes('https://');
-      return validURL && window.presentationManager.deviceManager.deviceAvailable;
+      return validURL && window.presentationManager.deviceManager.deviceAvailable();
     }
 
     // TODO: Define conditions to cast video
@@ -864,6 +863,7 @@ function uninitCastingManagerForWindow(window) {
  */
 function loadIntoWindow(window) {
   DEBUG_LOG('### loadIntoWindow: ');
+  
   // Initialize PresentationManager for this window
   initPresentationManagerForWindow(window);
 
