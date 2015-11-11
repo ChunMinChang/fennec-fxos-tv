@@ -21,12 +21,12 @@ Cu.import("resource://gre/modules/Prompt.jsm");
 Cu.import('resource://gre/modules/PresentationDeviceInfoManager.jsm');
 
 
-// An example of how to create a string bundle for localization.
+// Create a string bundle for localization.
 XPCOMUtils.defineLazyGetter(this, "Strings", function() {
   return Services.strings.createBundle("chrome://fxostv/locale/fxostv.properties");
 });
 
-// An example of how to import a helper module.
+// Import a helper module.
 XPCOMUtils.defineLazyGetter(this, "Helper", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/helper.js", sandbox);
@@ -41,10 +41,6 @@ XPCOMUtils.defineLazyGetter(this, "Helper", function() {
 function DEBUG_LOG(msg) {
   console.log(msg);
 }
-
-// function GET_UNIQUE_ID() {
-//   return Date.now();
-// }
 
 function GetRecentWindow() {
 	let window = Services.wm.getMostRecentWindow("navigator:browser");
@@ -92,7 +88,7 @@ function discoveryDevices(win) {
 // ----------------------
 const PresentationDevices = (function () {
   DEBUG_LOG('# [PresentationDevices] Immediately invoked!');
-  // Private Basic class for presentation device's infomation
+  // presentation device's infomation
   function DeviceInfo(device) {
     this.id = device.id || 'unidentified';
     this.name = device.name || 'unidentified';
@@ -174,89 +170,6 @@ const PresentationDevices = (function () {
 
 })();
 
-
-// PresentationDeviceManager
-// ----------------------
-// function PresentationDeviceManager() {}
-//
-// PresentationDeviceManager.prototype = {
-//
-//   deviceAvailable: function() {
-//     return PresentationDevices.getList().length > 0;
-//   },
-//
-//   init: function(window) {
-//     DEBUG_LOG('# PresentationDeviceManager.init');
-//
-//     if (!window.navigator.mozPresentationDeviceInfo) {
-//       DEBUG_LOG('  >> You need to open the preference of Presentation!');
-//       return;
-//     }
-//
-//     window.navigator.mozPresentationDeviceInfo.addEventListener('devicechange', this);
-//
-//     window.navigator.mozPresentationDeviceInfo.getAll()
-//     .then(function(devices) {
-//       DEBUG_LOG('-*- mozPresentationDeviceInfo.getAll() >> successfully!');
-//
-//       if (devices === undefined || !devices.length) {
-//         DEBUG_LOG('  >> no device!');
-//         return;
-//       }
-//
-//       // Add these devices into list
-//       PresentationDevices.setList(devices);
-//       DEBUG_LOG(PresentationDevices.getList());
-//
-//       // Initialize CastingManager for this window if it doesn't exist
-//       initCastingManagerForWindow(window);
-//
-//     }, function(error) {
-//       DEBUG_LOG('-*- mozPresentationDeviceInfo.getAll() >> fail!');
-//       DEBUG_LOG(error);
-//     });
-//   },
-//
-//   uninit: function(window) {
-//     DEBUG_LOG('# PresentationDeviceManager.uninit');
-//     window.navigator.mozPresentationDeviceInfo.removeEventListener('devicechange', this);
-//   },
-//
-//   handleEvent: function(evt) {
-//     DEBUG_LOG('# PresentationDeviceManager.handleEvent: ' + evt.detail.type);
-//     switch (evt.detail.type) {
-//       case 'add':
-//         PresentationDevices.add(evt.detail.deviceInfo);
-//         // If this is the first device, then we need to
-//         // initialize CastingManager for this window
-//         if (PresentationDevices.getList().length == 1) {
-//           // evt.currentTarget is window.PresentationDeviceInfoManager itself,
-//           //  (loaded by PresentationDeviceInfoManager.jsm)
-//           // but we can get window by 'evt.currentTarget.ownerGlobal'
-//           initCastingManagerForWindow(evt.currentTarget.ownerGlobal);
-//         }
-//         break;
-//
-//       case 'update':
-//         PresentationDevices.update(evt.detail.deviceInfo);
-//         break;
-//
-//       case 'remove':
-//         PresentationDevices.remove(evt.detail.deviceInfo);
-//         // If the device list is empty now, then CastingManager is no longer
-//         // needed for this window
-//         if (!PresentationDevices.getList().length) {
-//           uninitCastingManagerForWindow(evt.currentTarget.ownerGlobal);
-//         }
-//         break;
-//
-//       default:
-//         DEBUG_LOG('!!!!! Unexpected error: No event handler for this type');
-//         break;
-//     }
-//   },
-//
-// };
 
 // PresentationDeviceManager
 // ----------------------
@@ -488,7 +401,8 @@ var PresentationConnectionManager = function() {
     if (_presentation.session) {
       _presentation.sessionCloseExpected = true;
       _presentation.session.terminate();
-      // _presentation.session = null;
+      // _presentation.session will be set to null upon
+      // _presentation.session.state is changed to 'terminated'
       if (!_presentation.session.onmessage) {
         _presentation.session.onmessage = _presentationOnMessage;
       }
@@ -605,55 +519,6 @@ function uninitPresentationManagerForWindow(window) {
   }
 }
 
-
-// CastingManager
-// ----------------------
-// function CastingManager() {}
-//
-// CastingManager.prototype = {
-//   _pageActionIcon: null,
-//   _pageActionId: null,
-//
-//   _setPageActionIcon: function() {
-//   },
-//
-//   _shouldCast: function() {
-//   },
-//
-//   _addPageAction: function() {
-//   },
-//
-//   _chooseAction: function() {
-//   },
-//
-//   _promptInfoGenerator: function() {
-//   },
-//
-//   _getCurrentURL: function() {
-//   },
-//
-//   _castVideo: function() {
-//   },
-//
-//   _castWebpage: function() {
-//   },
-//
-//   _pinWebpageToHomescreen: function() {
-//   },
-//
-//   _remoteControl: function() {
-//   },
-//
-//   _updatePageAction: function() {
-//   },
-//
-//   init: function() {
-//   },
-//
-//   uninit: function() {
-//   },
-//
-// };
 
 var CastingManager = function() {
 
@@ -921,7 +786,6 @@ var CastingManager = function() {
         return;
       }
 
-      // Update the page action, scanning for a castable <video>
       _updatePageAction(window);
     }
 
@@ -1000,10 +864,6 @@ function uninitCastingManagerForWindow(window) {
  */
 function loadIntoWindow(window) {
   DEBUG_LOG('### loadIntoWindow: ');
-  // Set an unique id to window's name
-  // window.name = GET_UNIQUE_ID();
-  // DEBUG_LOG('  >> window.name: ' + window.name);
-
   // Initialize PresentationManager for this window
   initPresentationManagerForWindow(window);
 
