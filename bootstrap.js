@@ -87,7 +87,7 @@ const PresentationDevices = (function () {
     this.castVideoEnabled = true;
     this.castPageEnabled = true;
     this.pinPageEnabled = true;
-    this.remoteControlEnabled = true;
+    this.remoteControlEnabled = false;
   }
 
   // To save all information of the presentation devices discovered
@@ -167,8 +167,8 @@ const PresentationDevices = (function () {
 // ----------------------
 var PresentationDeviceManager = function() {
 
-  function deviceAvailable() {
-    DEBUG_LOG('# PresentationDeviceManager.deviceAvailable');
+  function _deviceAvailable() {
+    DEBUG_LOG('# PresentationDeviceManager._deviceAvailable');
     var available = false;
     var devs = PresentationDevices.getList();
     for (var i = 0 ; i < devs.length ; i ++) {
@@ -257,7 +257,9 @@ var PresentationDeviceManager = function() {
   return {
     init: init,
     uninit: uninit,
-    deviceAvailable: deviceAvailable
+    get deviceAvailable() {
+      return _deviceAvailable();
+    }
   };
 };
 
@@ -385,10 +387,11 @@ var PresentationConnectionManager = function() {
     }
   }
 
+  // TODO: close semantics is not ready now(Bug 1210340).
+  // Uncomment the line after close semantic is ready
   function close() {
     DEBUG_LOG('# PresentationConnectionManager.close');
-    // close semantics is not ready now(Bug 1210340).
-    // _disconnect();
+    // _disconnect(false);
     return;
   }
 
@@ -570,7 +573,7 @@ var CastingManager = function() {
       DEBUG_LOG('# CastingManager._shouldCast');
       var currentURL = _getCurrentURL(window);
       var validURL = currentURL.includes('http://') || currentURL.includes('https://');
-      return validURL && window.presentationManager.deviceManager.deviceAvailable();
+      return validURL && window.presentationManager.deviceManager.deviceAvailable;
     }
 
     // TODO: Define conditions to cast video
