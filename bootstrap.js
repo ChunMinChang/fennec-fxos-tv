@@ -19,6 +19,7 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/PageActions.jsm");
 Cu.import("resource://gre/modules/Prompt.jsm");
 Cu.import('resource://gre/modules/PresentationDeviceInfoManager.jsm');
+Cu.import("resource://gre/modules/MulticastDNS.jsm");
 
 
 // Create a string bundle for localization.
@@ -87,7 +88,7 @@ const PresentationDevices = (function () {
     this.castVideoEnabled = true;
     this.castPageEnabled = true;
     this.pinPageEnabled = true;
-    this.remoteControlEnabled = false;
+    this.remoteControlPortAndPath = false;
   }
 
   // To save all information of the presentation devices discovered
@@ -151,12 +152,29 @@ const PresentationDevices = (function () {
     }
   }
 
+  function updateServices(dnsServiceInfo) {
+    DEBUG_LOG('# [PresentationDevices] updateService');
+
+    var index = _list.findIndex(function(dev) {
+      return dev.name == dnsServiceInfo.serviceName;
+    });
+
+    if (index > -1) {
+      DEBUG_LOG("Updating " + _list[index].name + "'s service.....");
+      // TODO: Detecting which services will be updated
+      DEBUG_LOG("  >> port: " + dnsServiceInfo.port);
+      // DEBUG_LOG("  >> path: " + dnsServiceInfo.attributes.getPropertyAsAString("path"));
+      _list[index].remoteControlPortAndPath = ":8080/";
+    }
+  }
+
   return {
     setList: setList,
     getList: getList,
     add: addDevice,
     update: updateDevice,
-    remove: removeDevice
+    remove: removeDevice,
+    updateServices: updateServices
   };
 
 })();
@@ -167,6 +185,43 @@ const PresentationDevices = (function () {
 // ----------------------
 var PresentationDeviceManager = function() {
 
+  let _listener = {
+    onDiscoveryStarted: function(servType) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onDiscoveryStarted");
+    },
+    onDiscoveryStopped: function(servType) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onDiscoveryStopped");
+    },
+    onStartDiscoveryFailed: function(servType, errorCode) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onStartDiscoveryFailed");
+    },
+    onStopDiscoveryFailed: function(servType, errorCode) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onStopDiscoveryFailed");
+    },
+
+    // The serviceInfo is a nsIDNSServiceInfo XPCOM object
+    // see more: https://dxr.mozilla.org/mozilla-central/source/netwerk/dns/mdns/nsIDNSServiceDiscovery.idl
+    onServiceFound: function(serviceInfo) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceFound");
+      PresentationDevices.updateServices(serviceInfo);
+    },
+    onServiceLost: function(serviceInfo) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceLost");
+    },
+    onServiceRegistered: function(serviceInfo) {
+    },
+    onServiceUnregistered: function(serviceInfo) {
+    },
+    onServiceResolved: function(serviceInfo) {
+    },
+    onRegistrationFailed: function(serviceInfo, errorCode) {
+    },
+    onUnregistrationFailed: function(serviceInfo, errorCode) {
+    },
+    onResolveFailed: function(serviceInfo, errorCode) {
+    },
+  };
+
   function _deviceAvailable() {
     DEBUG_LOG('# PresentationDeviceManager._deviceAvailable');
     var available = false;
@@ -175,7 +230,7 @@ var PresentationDeviceManager = function() {
       available |= devs[i].castVideoEnabled |
                    devs[i].castPageEnabled |
                    devs[i].pinPageEnabled |
-                   devs[i].remoteControlEnabled;
+                   devs[i].remoteControlPortAndPath;
       if (available) {
         return available;
       }
@@ -197,10 +252,16 @@ var PresentationDeviceManager = function() {
           // but we can get window by 'evt.currentTarget.ownerGlobal'
           initCastingManagerForWindow(evt.currentTarget.ownerGlobal);
         }
+
+        // update device's services
+        updateServices(evt.currentTarget.ownerGlobal);
         break;
 
       case 'update':
         PresentationDevices.update(evt.detail.deviceInfo);
+
+        // update device's services
+        updateServices(evt.currentTarget.ownerGlobal);
         break;
 
       case 'remove':
@@ -218,6 +279,32 @@ var PresentationDeviceManager = function() {
     }
   }
 
+  function _mdnsDiscovery(window, period, serviceType) {
+    DEBUG_LOG('# PresentationDeviceManager._mdnsDiscovery');
+    period = period || 1000;
+    serviceType = serviceType || "_http._tcp.";
+    let mdns = Cc["@mozilla.org/toolkit/components/mdnsresponder/dns-sd;1"].
+               getService(Ci.nsIDNSServiceDiscovery);
+    // https://developer.mozilla.org/en-US/docs/Mozilla/Errors
+    let timeout_code = 0x804B000E;
+    let disc = mdns.startDiscovery(serviceType, _listener);
+    window.setTimeout(function() {
+      disc.cancel(timeout_code);
+    }, period);
+  }
+
+  function _registerServicesUpdater(window) {
+    DEBUG_LOG('# PresentationDeviceManager._registerServicesUpdater');
+    // Use startDiscovery to register mdns' listerers first.
+    _mdnsDiscovery(window, 500);
+  }
+
+  function updateServices(window) {
+    DEBUG_LOG('# PresentationDeviceManager.updateServices');
+    // Trigger onServiceFound by startDiscovery
+    _mdnsDiscovery(window, 1000);
+  }
+
   function init(window) {
     DEBUG_LOG('# PresentationDeviceManager.init');
 
@@ -225,6 +312,8 @@ var PresentationDeviceManager = function() {
       DEBUG_LOG('  >> mozPresentationDeviceInfo should be available');
       return;
     }
+
+    _registerServicesUpdater(window);
 
     // Add event listener for devicechange
     window.navigator.mozPresentationDeviceInfo.addEventListener('devicechange', _handleEvent);
@@ -259,7 +348,8 @@ var PresentationDeviceManager = function() {
     uninit: uninit,
     get deviceAvailable() {
       return _deviceAvailable();
-    }
+    },
+    updateServices: updateServices
   };
 };
 
@@ -566,6 +656,22 @@ var CastingManager = function() {
       // window.alert('TODO: remote control from: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // remote control to TV here...
+        var appURL = "app://notification-receiver.gaiamobile.org/index.html";
+        window.presentationManager.connectionManager.connect(window, appURL, target).then(function(result) {
+          window.NativeWindow.toast.show(Strings.GetStringFromName("toast.request.send"), "long");
+          // We need to cast a webpage first
+          window.presentationManager.connectionManager.sendCommand("view", { "url": currentURL, "timestamp": Date.now() });
+          // and open a remote control tab
+          DEBUG_LOG(">> ip: " + target.id);
+          DEBUG_LOG(">> port and path: " + target.remoteControlPortAndPath);
+          window.BrowserApp.addTab(target.id + target.remoteControlPortAndPath);
+          // close the session
+          window.presentationManager.connectionManager.close();
+        }).catch(function(error){
+          window.NativeWindow.toast.show(Strings.GetStringFromName("toast.request.fail"), "long");
+          DEBUG_LOG(error);
+          window.presentationManager.connectionManager.terminate();
+        });
       }
     }
 
@@ -706,7 +812,7 @@ var CastingManager = function() {
           ++key;
         }
 
-        if (devices[i].remoteControlEnabled) {
+        if (devices[i].remoteControlPortAndPath) {
           menu.push({ label: Strings.GetStringFromName("prompt.remoteControl") });
           callbacks[key] = _remoteControl;
           targetDevices[key] = devices[i];
@@ -785,7 +891,10 @@ var CastingManager = function() {
       // Reload pageActionIcon after tab has been switched
       window.BrowserApp.deck.addEventListener("TabSelect", _handleEvent, true);
 
-      // TODO: Relad pageAction when wifi is turned-off
+      // TODO: Remove pageAction when wifi is turned-off,
+      // and reload it when wifi is turned-on.
+
+      // updateServices
 
       // Add pageActionIcon to URL bar if it need
       _updatePageAction(window);
