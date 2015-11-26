@@ -33,16 +33,3 @@ _navigator.presentation_, and _url bar_,
 so _PresentationDeviceManager_, _PresentationConnectionManager_ and _CastingManager_ should follow the window.
 However, no matter how many _PresentationDeviceManager_ instances fennec have,
 we should have only one device-list, _PresentationDevices_, because we just have one device!
-
-## TODO:
-- Issues
-  - [Bug 1228192 - Expose |attributes| of mDNS on Fennec](https://bugzilla.mozilla.org/show_bug.cgi?id=1228192)
-- bootstrap.js
-  - Consider a general archi for four use cases
-  - Define conditions to cast video
-  - UI:
-    - Change the service-list dynamically by webpage content and devices' services
-      - Presentation API now can't know what services the devices provide before building connection
-    - Add a small icon to video tag when there is compatible device nearby
-    - Survey how to show submenu
-    - Survey how to create and overlay a control menu for casting video and remote control
