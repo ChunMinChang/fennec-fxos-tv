@@ -35,6 +35,9 @@ However, no matter how many _PresentationDeviceManager_ instances fennec have,
 we should have only one device-list, _PresentationDevices_, because we just have one device!
 
 ## TODO:
+- Issues
+  - The _nsIDNSServiceInfo_ XPCOM object returned from onServiceFound
+  only has two properties: _serviceName_ and _serviceType_
 - bootstrap.js
   - Consider a general archi for four use cases
   - Define conditions to cast video

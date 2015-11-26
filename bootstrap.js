@@ -164,7 +164,7 @@ const PresentationDevices = (function () {
       // TODO: Detecting which services will be updated
       DEBUG_LOG("  >> port: " + dnsServiceInfo.port);
       // DEBUG_LOG("  >> path: " + dnsServiceInfo.attributes.getPropertyAsAString("path"));
-      _list[index].remoteControlPortAndPath = ":8080/";
+      _list[index].remoteControlPortAndPath = ":" + dnsServiceInfo.port + "/";
     }
   }
 
@@ -203,22 +203,37 @@ var PresentationDeviceManager = function() {
     // see more: https://dxr.mozilla.org/mozilla-central/source/netwerk/dns/mdns/nsIDNSServiceDiscovery.idl
     onServiceFound: function(serviceInfo) {
       DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceFound");
-      PresentationDevices.updateServices(serviceInfo);
+      DEBUG_LOG(serviceInfo.serviceName);
+      let mdns = Cc["@mozilla.org/toolkit/components/mdnsresponder/dns-sd;1"].
+                 getService(Ci.nsIDNSServiceDiscovery);
+      mdns.resolveService(serviceInfo, this);
     },
     onServiceLost: function(serviceInfo) {
       DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceLost");
     },
     onServiceRegistered: function(serviceInfo) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceRegistered");
     },
     onServiceUnregistered: function(serviceInfo) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceUnregistered");
     },
     onServiceResolved: function(serviceInfo) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceResolved");
+      // DEBUG_LOG(serviceInfo.serviceName);
+      // DEBUG_LOG(serviceInfo.serviceType);
+      // DEBUG_LOG(serviceInfo.host);
+      // DEBUG_LOG(serviceInfo.address);
+      // DEBUG_LOG(serviceInfo.port);
+      PresentationDevices.updateServices(serviceInfo);
     },
     onRegistrationFailed: function(serviceInfo, errorCode) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onRegistrationFailed");
     },
     onUnregistrationFailed: function(serviceInfo, errorCode) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onUnregistrationFailed");
     },
     onResolveFailed: function(serviceInfo, errorCode) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onResolveFailed");
     },
   };
 
@@ -302,7 +317,7 @@ var PresentationDeviceManager = function() {
   function updateServices(window) {
     DEBUG_LOG('# PresentationDeviceManager.updateServices');
     // Trigger onServiceFound by startDiscovery
-    _mdnsDiscovery(window, 1000);
+    _mdnsDiscovery(window, 5000);
   }
 
   function init(window) {
