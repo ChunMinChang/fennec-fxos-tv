@@ -36,8 +36,7 @@ we should have only one device-list, _PresentationDevices_, because we just have
 
 ## TODO:
 - Issues
-  - The _nsIDNSServiceInfo_ XPCOM object returned from onServiceFound
-  only has two properties: _serviceName_ and _serviceType_
+  - [Bug 1228192 - Expose |attributes| of mDNS on Fennec](https://bugzilla.mozilla.org/show_bug.cgi?id=1228192)
 - bootstrap.js
   - Consider a general archi for four use cases
   - Define conditions to cast video
