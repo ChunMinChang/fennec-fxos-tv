@@ -27,9 +27,6 @@ $ make GAIA_DEVICE_TYPE=tv DEVICE_DEBUG=1 reset-gaia
 - Open menu > Tools > Add-ons > Firefox OS TV 1.0 >> Unubstall
 - [remove script](https://github.com/ChunMinChang/fennec-fxos-tv/blob/master/rm_files): run ```./rm_files```
 
-## How to use
-
-
 ## Note
 - Window
   - PresentationManager
