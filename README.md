@@ -9,6 +9,18 @@ A simple fennec add-on for Firefox OS smart TV. This project is based on [leibov
 - [build script](https://github.com/ChunMinChang/fennec-fxos-tv/blob/master/build)
   - Remember to modify the target device(e.g., _ANDROID_APP_ID_) to yours in _build_ script
   - run ```./build``` and click the link shown on a installation webpage!
+- TV side: Flashing TV build into your developer phone
+  - Making CSS pixel to fit phone screen size: Applying patch on https://gist.github.com/schien/e972c97b35922a91d206
+  - Applying patch on [Bug 1226144](https://bugzilla.mozilla.org/show_bug.cgi?id=1226144) to avoid TV crashes
+  - Flash
+```
+$ cd <B2G>
+$ ./build.sh
+$ ./flash.sh
+$ cd <B2G>/gaia
+$ make clean
+$ make GAIA_DEVICE_TYPE=tv DEVICE_DEBUG=1 reset-gaia
+```
 - Please check __dom.presentation.enabled__ is set to __true__ through ```about:config```
 
 ## Remove related files
