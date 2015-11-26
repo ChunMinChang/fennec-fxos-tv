@@ -95,7 +95,6 @@ const PresentationDevices = (function () {
   var _list = [];
 
   function setList(devices) {
-    DEBUG_LOG('# [PresentationDevices] setList');
     _list = devices.map(function(dev) {
       var info = new DeviceInfo(dev);
       return info;
@@ -103,7 +102,6 @@ const PresentationDevices = (function () {
   }
 
   function getList() {
-    DEBUG_LOG('# [PresentationDevices] getList');
     return _list;
   }
 
@@ -187,58 +185,39 @@ var PresentationDeviceManager = function() {
 
   let _listener = {
     onDiscoveryStarted: function(servType) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onDiscoveryStarted");
     },
     onDiscoveryStopped: function(servType) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onDiscoveryStopped");
     },
     onStartDiscoveryFailed: function(servType, errorCode) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onStartDiscoveryFailed");
     },
     onStopDiscoveryFailed: function(servType, errorCode) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onStopDiscoveryFailed");
     },
 
     // The serviceInfo is a nsIDNSServiceInfo XPCOM object
     // see more: https://dxr.mozilla.org/mozilla-central/source/netwerk/dns/mdns/nsIDNSServiceDiscovery.idl
     onServiceFound: function(serviceInfo) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceFound");
-      DEBUG_LOG(serviceInfo.serviceName);
       let mdns = Cc["@mozilla.org/toolkit/components/mdnsresponder/dns-sd;1"].
                  getService(Ci.nsIDNSServiceDiscovery);
       mdns.resolveService(serviceInfo, this);
     },
     onServiceLost: function(serviceInfo) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceLost");
     },
     onServiceRegistered: function(serviceInfo) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceRegistered");
     },
     onServiceUnregistered: function(serviceInfo) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceUnregistered");
     },
     onServiceResolved: function(serviceInfo) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceResolved");
-      // DEBUG_LOG(serviceInfo.serviceName);
-      // DEBUG_LOG(serviceInfo.serviceType);
-      // DEBUG_LOG(serviceInfo.host);
-      // DEBUG_LOG(serviceInfo.address);
-      // DEBUG_LOG(serviceInfo.port);
       PresentationDevices.updateServices(serviceInfo);
     },
     onRegistrationFailed: function(serviceInfo, errorCode) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onRegistrationFailed");
     },
     onUnregistrationFailed: function(serviceInfo, errorCode) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onUnregistrationFailed");
     },
     onResolveFailed: function(serviceInfo, errorCode) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onResolveFailed");
     },
   };
 
   function _deviceAvailable() {
-    DEBUG_LOG('# PresentationDeviceManager._deviceAvailable');
     var available = false;
     var devs = PresentationDevices.getList();
     for (var i = 0 ; i < devs.length ; i ++) {
@@ -295,7 +274,6 @@ var PresentationDeviceManager = function() {
   }
 
   function _mdnsDiscovery(window, period, serviceType) {
-    DEBUG_LOG('# PresentationDeviceManager._mdnsDiscovery');
     period = period || 1000;
     serviceType = serviceType || "_http._tcp.";
     let mdns = Cc["@mozilla.org/toolkit/components/mdnsresponder/dns-sd;1"].
@@ -444,19 +422,15 @@ var PresentationConnectionManager = function() {
     return new Promise(function(resolve, reject) {
       let presentationRequest = new window.PresentationRequest(url);
       presentationRequest.start().then(function(session){
-        DEBUG_LOG('  >> get session!');
-        DEBUG_LOG(session);
         if (session.id && session.state == "connected") {
-          DEBUG_LOG('  >> Build connection successfully!');
           _presentation.session = session;
           _presentation.session.onmessage = _presentationOnMessage;
           _presentation.session.onstatechange = _presentationOnStatechange;
-          resolve('(PresentationConnectionManager._startSession) presentation session is built!');
+          resolve();
         } else {
           reject('session.id or session.state is wrong!');
         }
       }).catch(function(error) {
-        DEBUG_LOG('  >> Build connection failed!');
         reject(error);
       });
     });
@@ -474,8 +448,6 @@ var PresentationConnectionManager = function() {
         msg[k] = data[k];
       }
     }
-    DEBUG_LOG(msg);
-    DEBUG_LOG(JSON.stringify(msg));
     _presentation.session.send(JSON.stringify(msg));
   }
 
@@ -509,14 +481,10 @@ var PresentationConnectionManager = function() {
     DEBUG_LOG('# PresentationConnectionManager.connect');
     return new Promise(function(resolve, reject) {
       _presentationPrompt(target.id).then(function(result) {
-        DEBUG_LOG('  >> prompt is ready!');
         return _startSession(window, url);
       }).then(function(result) {
-        DEBUG_LOG('  >> session is ready!');
         resolve(result);
       }).catch(function(error){
-        DEBUG_LOG('  >> connection failed!');
-        DEBUG_LOG(error);
         reject(error);
       });
     });
@@ -613,18 +581,15 @@ var CastingManager = function() {
         _pageActionId = null;
 
     function _isCastingEnabled() {
-      DEBUG_LOG('# CastingManager._isCastingEnabled');
       return Services.prefs.getBoolPref("browser.casting.enabled");
     }
 
     function _getCurrentURL(window) {
-      DEBUG_LOG('# CastingManager._getCurrentURL');
       return window.BrowserApp.selectedBrowser.currentURI.spec;
     }
 
     function _castVideo(window, target) {
       DEBUG_LOG('# CastingManager._castVideo');
-      DEBUG_LOG(target);
       var currentURL = _getCurrentURL(window);
       // window.alert('TODO: Cast video from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
@@ -634,7 +599,6 @@ var CastingManager = function() {
 
     function _castWebpage(window, target) {
       DEBUG_LOG('# CastingManager._castWebpage');
-      DEBUG_LOG(target);
       var currentURL = _getCurrentURL(window);
       // window.alert('TODO: Cast webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
@@ -642,8 +606,6 @@ var CastingManager = function() {
         var appURL = "app://notification-receiver.gaiamobile.org/index.html";
         window.presentationManager.connectionManager.connect(window, appURL, target).then(function(result) {
           window.NativeWindow.toast.show(Strings.GetStringFromName("toast.request.send"), "long");
-          DEBUG_LOG('!!!!! Prepare to cast webpage....');
-          DEBUG_LOG(result);
           window.presentationManager.connectionManager.sendCommand("view", { "url": currentURL, "timestamp": Date.now() });
           window.presentationManager.connectionManager.close();
         }).catch(function(error){
@@ -656,7 +618,6 @@ var CastingManager = function() {
 
     function _pinWebpageToHomescreen(window, target) {
       DEBUG_LOG('# CastingManager._pinWebpageToHomescreen');
-      DEBUG_LOG(target);
       var currentURL = _getCurrentURL(window);
       // window.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
@@ -691,7 +652,6 @@ var CastingManager = function() {
     }
 
     function _shouldCast(window) {
-      DEBUG_LOG('# CastingManager._shouldCast');
       var currentURL = _getCurrentURL(window);
       var validURL = currentURL.includes('http://') || currentURL.includes('https://');
       return validURL && window.presentationManager.deviceManager.deviceAvailable;
@@ -785,7 +745,6 @@ var CastingManager = function() {
     }
 
     function _promptInfoGenerator(window) {
-      DEBUG_LOG('# CastingManager._promptInfoGenerator');
       var videoCastable = _findCastableVideo(window.BrowserApp.selectedBrowser);
 
       // Prompt menu
@@ -843,14 +802,12 @@ var CastingManager = function() {
       DEBUG_LOG(evt);
       switch (evt.type) {
         case 'pageshow': {
-          DEBUG_LOG(' >> pageshow');
           let domWindow = evt.currentTarget;
           let tab = domWindow.BrowserApp.getTabForWindow(evt.originalTarget.defaultView);
           _updatePageActionForTab(domWindow, tab);
           break;
         }
         case 'TabSelect': {
-          DEBUG_LOG('TabSelect');
           let domWindow = evt.view; //evt.view is ChromeWindow!
           let tab = domWindow.BrowserApp.getTabForBrowser(evt.target);
           _updatePageActionForTab(domWindow, tab);
@@ -863,6 +820,7 @@ var CastingManager = function() {
     }
 
     function _removePageAction() {
+      DEBUG_LOG('# CastingManager._removePageAction');
       if (_pageActionId) {
         DEBUG_LOG('  >> Remove existing PageActionIcon!');
         PageActions.remove(_pageActionId);
