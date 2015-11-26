@@ -40,7 +40,6 @@ we should have only one device-list, _PresentationDevices_, because we just have
 - bootstrap.js
   - Consider a general archi for four use cases
   - Define conditions to cast video
-  - Detect which service should be update when onServiceFound is triggered
   - UI:
     - Change the service-list dynamically by webpage content and devices' services
       - Presentation API now can't know what services the devices provide before building connection
