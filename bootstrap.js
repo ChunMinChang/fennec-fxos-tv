@@ -53,6 +53,7 @@ function GetRecentWindow() {
 var gDiscoveryMenuId = null;
 
 function discoveryDevices(win) {
+  DEBUG_LOG("### discoveryDevices ###");
   win.navigator.mozPresentationDeviceInfo.getAll()
   .then(function(devices) {
 
@@ -85,7 +86,7 @@ const PresentationDevices = (function () {
     this.name = device.name || 'unidentified';
     this.type = device.type || 'unidentified';
     // Assuming all functions are enabled on presentation devices
-    this.castVideoEnabled = true;
+    this.castVideoEnabled = false;
     this.castPageEnabled = true;
     this.pinPageEnabled = true;
     this.remoteControlPortAndPath = false;
@@ -164,6 +165,10 @@ const PresentationDevices = (function () {
       // DEBUG_LOG("  >> path: " + dnsServiceInfo.attributes.getPropertyAsAString("path"));
       _list[index].remoteControlPortAndPath = ":" + dnsServiceInfo.port + "/";
     }
+    // For Debug
+    else {
+       DEBUG_LOG('  >> device doesn\'t exist!');
+    }
   }
 
   return {
@@ -183,53 +188,61 @@ const PresentationDevices = (function () {
 // ----------------------
 var PresentationDeviceManager = function() {
 
+  // Flow to use nsdManager on Android:
+  // http://developer.android.com/reference/android/net/nsd/NsdManager.html#jd-content
   let _listener = {
     onDiscoveryStarted: function(servType) {
     },
-    onDiscoveryStopped: function(servType) {
-    },
     onStartDiscoveryFailed: function(servType, errorCode) {
+    },
+    onDiscoveryStopped: function(servType) {
     },
     onStopDiscoveryFailed: function(servType, errorCode) {
     },
 
     // The serviceInfo is a nsIDNSServiceInfo XPCOM object
     // see more: https://dxr.mozilla.org/mozilla-central/source/netwerk/dns/mdns/nsIDNSServiceDiscovery.idl
-    onServiceFound: function(serviceInfo) {
-      let mdns = Cc["@mozilla.org/toolkit/components/mdnsresponder/dns-sd;1"].
-                 getService(Ci.nsIDNSServiceDiscovery);
-      mdns.resolveService(serviceInfo, this);
-    },
-    onServiceLost: function(serviceInfo) {
-    },
     onServiceRegistered: function(serviceInfo) {
-    },
-    onServiceUnregistered: function(serviceInfo) {
-    },
-    onServiceResolved: function(serviceInfo) {
-      PresentationDevices.updateServices(serviceInfo);
     },
     onRegistrationFailed: function(serviceInfo, errorCode) {
     },
+    onServiceUnregistered: function(serviceInfo) {
+    },
     onUnregistrationFailed: function(serviceInfo, errorCode) {
     },
+    onServiceFound: function(serviceInfo) {
+    },
+    onServiceLost: function(serviceInfo) {
+    },
+    onServiceResolved: function(serviceInfo) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceResolved: " + serviceInfo.serviceName);
+      PresentationDevices.updateServices(serviceInfo);
+    },
     onResolveFailed: function(serviceInfo, errorCode) {
+      DEBUG_LOG("# PresentationDeviceManager._listener >> onResolveFailed: " + serviceInfo.serviceName);
+      // The errorcode is copy from:
+      // https://github.com/android/platform_frameworks_base/blob/master/core/java/android/net/nsd/NsdManager.java#L239
+      let error = {
+        0: "FAILURE_INTERNAL_ERROR",
+        3: "FAILURE_ALREADY_ACTIVE",
+        4: "FAILURE_MAX_LIMIT",
+      };
+      DEBUG_LOG("errorCode " + errorCode + ": " + error[errorCode]);
     },
   };
 
+  // Return true if one of services of discovered devices is enabled
   function _deviceAvailable() {
-    var available = false;
     var devs = PresentationDevices.getList();
     for (var i = 0 ; i < devs.length ; i ++) {
-      available |= devs[i].castVideoEnabled |
-                   devs[i].castPageEnabled |
-                   devs[i].pinPageEnabled |
-                   devs[i].remoteControlPortAndPath;
-      if (available) {
-        return available;
+      if (devs[i].castVideoEnabled ||
+          devs[i].castPageEnabled ||
+          devs[i].pinPageEnabled ||
+          devs[i].remoteControlPortAndPath) {
+        return true;
       }
     }
-    return available;
+    return false;
   }
 
   function _handleEvent(evt) {
@@ -248,14 +261,14 @@ var PresentationDeviceManager = function() {
         }
 
         // update device's services
-        updateServices(evt.currentTarget.ownerGlobal);
+        _updateServices(evt.detail.deviceInfo.id, evt.detail.deviceInfo.name);
         break;
 
       case 'update':
         PresentationDevices.update(evt.detail.deviceInfo);
 
         // update device's services
-        updateServices(evt.currentTarget.ownerGlobal);
+        _updateServices(evt.detail.deviceInfo.id, evt.detail.deviceInfo.name);
         break;
 
       case 'remove':
@@ -273,44 +286,31 @@ var PresentationDeviceManager = function() {
     }
   }
 
-  function _mdnsDiscovery(window, period, serviceType) {
-    period = period || 1000;
+  function _mdnsResolveService(host, serviceName, serviceType) {
+    DEBUG_LOG('# PresentationDeviceManager._mdnsResolveService');
     serviceType = serviceType || "_http._tcp.";
+    let serviceInfo = Cc["@mozilla.org/toolkit/components/mdnsresponder/dns-info;1"].
+                      createInstance(Ci.nsIDNSServiceInfo);
+    serviceInfo.host = host;
+    serviceInfo.address = host;
+    serviceInfo.serviceType = serviceType;
+    serviceInfo.serviceName = serviceName;
+    serviceInfo.domainName = "local";
+
     let mdns = Cc["@mozilla.org/toolkit/components/mdnsresponder/dns-sd;1"].
                getService(Ci.nsIDNSServiceDiscovery);
-    // https://developer.mozilla.org/en-US/docs/Mozilla/Errors
-    let timeout_code = 0x804B000E;
-    let disc = mdns.startDiscovery(serviceType, _listener);
-    window.setTimeout(function() {
-      disc.cancel(timeout_code);
-    }, period);
+    mdns.resolveService(serviceInfo, _listener);
   }
 
-  function _registerServicesUpdater(window) {
-    DEBUG_LOG('# PresentationDeviceManager._registerServicesUpdater');
-    // Use startDiscovery to register mdns' listerers first.
-    _mdnsDiscovery(window, 500);
+  function _updateServices(id, name, type) {
+    DEBUG_LOG('# PresentationDeviceManager._updateServices >> id: ' + id + ', name: ' + name);
+    // The id of a presentation deviceis its ip, so we use it as host value.
+    // The name of a presentation device is same as the serviceName of mDNS.
+    _mdnsResolveService(id, name, type);
   }
 
-  function updateServices(window) {
-    DEBUG_LOG('# PresentationDeviceManager.updateServices');
-    // Trigger onServiceFound by startDiscovery
-    _mdnsDiscovery(window, 5000);
-  }
-
-  function init(window) {
-    DEBUG_LOG('# PresentationDeviceManager.init');
-
-    if (!window.navigator.mozPresentationDeviceInfo) {
-      DEBUG_LOG('  >> mozPresentationDeviceInfo should be available');
-      return;
-    }
-
-    _registerServicesUpdater(window);
-
-    // Add event listener for devicechange
-    window.navigator.mozPresentationDeviceInfo.addEventListener('devicechange', _handleEvent);
-
+  function _loadDevices(window, callback) {
+    DEBUG_LOG('# PresentationDeviceManager._loadDevices');
     // Load avaliable devices into list
     window.navigator.mozPresentationDeviceInfo.getAll()
     .then(function(devices) {
@@ -323,11 +323,35 @@ var PresentationDeviceManager = function() {
       PresentationDevices.setList(devices);
       DEBUG_LOG(PresentationDevices.getList());
 
-      // Initialize CastingManager for this window if it doesn't exist
-      initCastingManagerForWindow(window);
+      // Update devices' services
+      devices.forEach(function(dev, index, list){
+        _updateServices(dev.id, dev.name);
+      });
+
+      if (callback) {
+        callback();
+      }
 
     }, function(error) {
       DEBUG_LOG(error);
+    });
+  }
+
+  function init(window) {
+    DEBUG_LOG('# PresentationDeviceManager.init');
+
+    if (!window.navigator.mozPresentationDeviceInfo) {
+      DEBUG_LOG('  >> mozPresentationDeviceInfo should be available');
+      return;
+    }
+
+    // Add event listener for devicechange
+    window.navigator.mozPresentationDeviceInfo.addEventListener('devicechange', _handleEvent);
+
+    // Load existed presentation devices
+    _loadDevices(window, function(){
+      // Initialize CastingManager for this window if it doesn't exist
+      initCastingManagerForWindow(window);
     });
   }
 
@@ -342,7 +366,6 @@ var PresentationDeviceManager = function() {
     get deviceAvailable() {
       return _deviceAvailable();
     },
-    updateServices: updateServices
   };
 };
 
@@ -378,8 +401,9 @@ var PresentationConnectionManager = function() {
     DEBUG_LOG('  >> state: ' + _presentation.session.state);
 
     if (_presentation.session && _presentation.session.state !== "connected") {
-      if (_presentation.sessionCloseExpected) {
-        DEBUG_LOG('The session is unexpectedly closed');
+      if (!_presentation.sessionCloseExpected) {
+        // The session is closed by server
+        DEBUG_LOG('The session unexpectedly lose connection!' );
       }
       _reset();
     }
@@ -393,9 +417,10 @@ var PresentationConnectionManager = function() {
       if (!prompt) {
         reject('No available presentationDevicePrompt XPCOM');
       }
-      // Add "presentation-select-device" signal listener to
-      // the presentation-device-prompt XPCOM everytime before building a
-      // session because the presentation-device-prompt XPCOM will remove
+      // Add listener for "presentation-select-device" signal to
+      // the presentation-device-prompt XPCOM object everytime
+      // before building a session because the
+      // presentation-device-prompt XPCOM object will remove
       // "presentation-select-device" signal listener after receiving it.
       Services.obs.addObserver(prompt, "presentation-select-device", false);
 
@@ -443,10 +468,8 @@ var PresentationConnectionManager = function() {
       'seq': ++_presentation.seq
     };
 
-    if (data) {
-      for (var k in data) {
-        msg[k] = data[k];
-      }
+    for (var i in data) {
+      msg[i] = data[i];
     }
     _presentation.session.send(JSON.stringify(msg));
   }
@@ -457,7 +480,7 @@ var PresentationConnectionManager = function() {
       _presentation.sessionCloseExpected = true;
       (terminate)? _presentation.session.terminate() : _presentation.session.close();
       // _presentation.session will be set to null once
-      // _presentation.session.state is changed to 'terminated'
+      // _presentation.session.state is changed to 'terminated' or 'closed'
       if (!_presentation.session.onmessage) {
         _presentation.session.onmessage = _presentationOnMessage;
       }
@@ -600,7 +623,6 @@ var CastingManager = function() {
     function _castWebpage(window, target) {
       DEBUG_LOG('# CastingManager._castWebpage');
       var currentURL = _getCurrentURL(window);
-      // window.alert('TODO: Cast webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // cast webpage here...
         var appURL = "app://notification-receiver.gaiamobile.org/index.html";
@@ -629,7 +651,6 @@ var CastingManager = function() {
       DEBUG_LOG('# CastingManager._remoteControl');
       DEBUG_LOG(target);
       var currentURL = _getCurrentURL(window);
-      // window.alert('TODO: remote control from: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // remote control to TV here...
         var appURL = "app://notification-receiver.gaiamobile.org/index.html";
@@ -700,16 +721,9 @@ var CastingManager = function() {
         return;
       }
 
-      if (window) {
-        // Using data URIs as a workaround until bug 993698 is fixed.
-        if (window.devicePixelRatio <= 1.5) {
-          _pageActionIcon = ICON_HDPI;
-        } else if (window.devicePixelRatio <= 2) {
-          _pageActionIcon = ICON_XHDPI;
-        } else {
-          _pageActionIcon = ICON_XXHDPI;
-        }
-      }
+      _pageActionIcon = (window.devicePixelRatio <= 1.5)?
+                        ICON_HDPI : (window.devicePixelRatio <= 2)?
+                                    ICON_XHDPI : ICON_XXHDPI;
     }
 
     function _addPageAction(window) {
@@ -866,8 +880,6 @@ var CastingManager = function() {
 
       // TODO: Remove pageAction when wifi is turned-off,
       // and reload it when wifi is turned-on.
-
-      // updateServices
 
       // Add pageActionIcon to URL bar if it need
       _updatePageAction(window);
