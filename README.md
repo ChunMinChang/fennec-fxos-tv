@@ -3,9 +3,11 @@ A simple fennec add-on for Firefox OS smart TV. This project is based on [leibov
 
 ## Installation
 - [Fennec](https://wiki.mozilla.org/Mobile/Fennec/Android)
-  - Please apply the patch on [Bug 1129785](https://bugzilla.mozilla.org/show_bug.cgi?id=1129785) first
-  - Build your _mozilla-central_ to _fennec_ by setting [.mozconfig](https://wiki.mozilla.org/Mobile/Fennec/Android#Preparing_a_Fennec_mozconfig)
-  - Flash _fennec_ into your android device
+  - [Installing from package apk](https://people.mozilla.org/~schien/fennec-45.0a1.en-US.android-arm.apk)
+  - Or Building your own fennec
+    - Please apply the patch on [Bug 1129785](https://bugzilla.mozilla.org/show_bug.cgi?id=1129785) first
+    - Build your _mozilla-central_ to _fennec_ by setting [.mozconfig](https://wiki.mozilla.org/Mobile/Fennec/Android#Preparing_a_Fennec_mozconfig)
+    - Flash _fennec_ into your android device
 - [build script](https://github.com/ChunMinChang/fennec-fxos-tv/blob/master/build)
   - Remember to modify the target device(e.g., _ANDROID_APP_ID_) to yours in _build_ script
   - run ```./build``` and click the link shown on a installation webpage!
@@ -24,7 +26,7 @@ $ make GAIA_DEVICE_TYPE=tv DEVICE_DEBUG=1 reset-gaia
 - Please check __dom.presentation.enabled__ is set to __true__ through ```about:config```
 
 ## Remove related files
-- Open menu > Tools > Add-ons > Firefox OS TV 1.0 >> Unubstall
+- Open menu > Tools > Add-ons > Firefox OS TV 1.0 >> Uninstall
 - [remove script](https://github.com/ChunMinChang/fennec-fxos-tv/blob/master/rm_files): run ```./rm_files```
 
 ## Note
