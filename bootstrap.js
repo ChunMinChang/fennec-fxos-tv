@@ -1,5 +1,22 @@
 "use strict";
 
+
+/*
+ * Each window object has the following properties
+ *
+ *                                 ┌ PresentationConnectionManager
+ *           ┌ PresentationManager ┤
+ *           │                     └ PresentationDeviceManager
+ *   Window ─┤
+ *           │
+ *           └ CastingManager
+ *
+ *
+ */
+
+
+
+
 /*
  * Images
  * ==================================
@@ -39,21 +56,28 @@ XPCOMUtils.defineLazyGetter(this, "Helper", function() {
  * Utils
  * ==================================
  */
-function DEBUG_LOG(msg) {
-  console.log(msg);
-}
 
+// Import a Debugger module.
+XPCOMUtils.defineLazyGetter(this, "Debugger", function() {
+  let sandbox = {};
+  Services.scriptloader.loadSubScript("chrome://fxostv/content/debugger.js", sandbox);
+  return sandbox["Debugger"];
+});
+// Enable the log
+Debugger.enable = true;
+
+// Used to get window
 function GetRecentWindow() {
 	let window = Services.wm.getMostRecentWindow("navigator:browser");
 	return window;
 }
 
-// For Debug
+// For Debugging
 // ----------------------
 var gDiscoveryMenuId = null;
 
 function discoveryDevices(win) {
-  DEBUG_LOG("### discoveryDevices ###");
+  Debugger.log("### discoveryDevices ###");
   win.navigator.mozPresentationDeviceInfo.getAll()
   .then(function(devices) {
 
@@ -62,10 +86,10 @@ function discoveryDevices(win) {
     }
 
     PresentationDevices.setList(devices);
-    DEBUG_LOG(PresentationDevices.getList());
+    Debugger.log(PresentationDevices.getList());
 
   }, function(error) {
-    DEBUG_LOG(error);
+    Debugger.log(error);
   });
 
   win.NativeWindow.toast.show('Discovery presentaion devices', "short");
@@ -79,464 +103,31 @@ function discoveryDevices(win) {
  */
 // PresentationDevices
 // ----------------------
-const PresentationDevices = (function () {
-  // Containing presentation device's infomation
-  function DeviceInfo(device) {
-    this.id = device.id || 'unidentified';
-    this.name = device.name || 'unidentified';
-    this.type = device.type || 'unidentified';
-    // Assuming all functions are enabled on presentation devices
-    this.castVideoEnabled = false;
-    this.castPageEnabled = true;
-    this.pinPageEnabled = true;
-    this.remoteControlPortAndPath = false;
-  }
-
-  // To save all information of the presentation devices discovered
-  var _list = [];
-
-  function setList(devices) {
-    _list = devices.map(function(dev) {
-      var info = new DeviceInfo(dev);
-      return info;
-    });
-  }
-
-  function getList() {
-    return _list;
-  }
-
-  function addDevice(device) {
-    DEBUG_LOG('# [PresentationDevices] addDevice');
-    var found = _list.find(function(dev) {
-      return dev.id == device.id;
-    });
-
-    if (!found) {
-      _list.push(new DeviceInfo(device));
-    }
-    // For Debug
-    else {
-      DEBUG_LOG('  >> device alreadt exist!');
-    }
-  }
-
-  function updateDevice(device) {
-    DEBUG_LOG('# [PresentationDevices] updateDevice');
-    var index = _list.findIndex(function(dev) {
-      return dev.id == device.id;
-    });
-
-    if (index > -1) {
-      _list[index] = new DeviceInfo(device);
-    }
-    // For Debug
-    else {
-       DEBUG_LOG('  >> device doesn\'t exist!');
-    }
-  }
-
-  function removeDevice(device) {
-    DEBUG_LOG('# [PresentationDevices] removeDevice');
-    var index = _list.findIndex(function(dev) {
-      return dev.id == device.id;
-    });
-
-    if (index > -1) {
-      _list.splice(index, 1);
-    }
-    // For Debug
-    else {
-       DEBUG_LOG('  >> device doesn\'t exist!');
-    }
-  }
-
-  function updateServices(dnsServiceInfo) {
-    DEBUG_LOG('# [PresentationDevices] updateService');
-
-    var index = _list.findIndex(function(dev) {
-      return dev.name == dnsServiceInfo.serviceName;
-    });
-
-    if (index > -1) {
-      DEBUG_LOG("Updating " + _list[index].name + "'s service.....");
-      // TODO: Detecting which services will be updated
-      DEBUG_LOG("  >> port: " + dnsServiceInfo.port);
-      // DEBUG_LOG("  >> path: " + dnsServiceInfo.attributes.getPropertyAsAString("path"));
-      _list[index].remoteControlPortAndPath = ":" + dnsServiceInfo.port + "/";
-    }
-    // For Debug
-    else {
-       DEBUG_LOG('  >> device doesn\'t exist!');
-    }
-  }
-
-  return {
-    setList: setList,
-    getList: getList,
-    add: addDevice,
-    update: updateDevice,
-    remove: removeDevice,
-    updateServices: updateServices
-  };
-
-})();
-
+// Import a presentationDevices module.
+XPCOMUtils.defineLazyGetter(this, "PresentationDevices", function() {
+  let sandbox = {};
+  Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationDevices.js", sandbox);
+  return sandbox["PresentationDevices"];
+});
 
 
 // PresentationDeviceManager
 // ----------------------
-var PresentationDeviceManager = function() {
-
-  // Flow to use nsdManager on Android:
-  // http://developer.android.com/reference/android/net/nsd/NsdManager.html#jd-content
-  let _listener = {
-    onDiscoveryStarted: function(servType) {
-    },
-    onStartDiscoveryFailed: function(servType, errorCode) {
-    },
-    onDiscoveryStopped: function(servType) {
-    },
-    onStopDiscoveryFailed: function(servType, errorCode) {
-    },
-
-    // The serviceInfo is a nsIDNSServiceInfo XPCOM object
-    // see more: https://dxr.mozilla.org/mozilla-central/source/netwerk/dns/mdns/nsIDNSServiceDiscovery.idl
-    onServiceRegistered: function(serviceInfo) {
-    },
-    onRegistrationFailed: function(serviceInfo, errorCode) {
-    },
-    onServiceUnregistered: function(serviceInfo) {
-    },
-    onUnregistrationFailed: function(serviceInfo, errorCode) {
-    },
-    onServiceFound: function(serviceInfo) {
-    },
-    onServiceLost: function(serviceInfo) {
-    },
-    onServiceResolved: function(serviceInfo) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onServiceResolved: " + serviceInfo.serviceName);
-      PresentationDevices.updateServices(serviceInfo);
-    },
-    onResolveFailed: function(serviceInfo, errorCode) {
-      DEBUG_LOG("# PresentationDeviceManager._listener >> onResolveFailed: " + serviceInfo.serviceName);
-      // The errorcode is copy from:
-      // https://github.com/android/platform_frameworks_base/blob/master/core/java/android/net/nsd/NsdManager.java#L239
-      let error = {
-        0: "FAILURE_INTERNAL_ERROR",
-        3: "FAILURE_ALREADY_ACTIVE",
-        4: "FAILURE_MAX_LIMIT",
-      };
-      DEBUG_LOG("errorCode " + errorCode + ": " + error[errorCode]);
-    },
-  };
-
-  // Return true if one of services of discovered devices is enabled
-  function _deviceAvailable() {
-    var devs = PresentationDevices.getList();
-    for (var i = 0 ; i < devs.length ; i ++) {
-      if (devs[i].castVideoEnabled ||
-          devs[i].castPageEnabled ||
-          devs[i].pinPageEnabled ||
-          devs[i].remoteControlPortAndPath) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  function _handleEvent(evt) {
-    DEBUG_LOG('# PresentationDeviceManager._handleEvent: ' + evt.detail.type);
-    DEBUG_LOG(evt);
-    switch (evt.detail.type) {
-      case 'add':
-        PresentationDevices.add(evt.detail.deviceInfo);
-        // If this is the first device, then we need to
-        // initialize CastingManager for this window
-        if (PresentationDevices.getList().length == 1) {
-          // evt.currentTarget is window.PresentationDeviceInfoManager itself,
-          // (loaded by PresentationDeviceInfoManager.jsm)
-          // but we can get window by 'evt.currentTarget.ownerGlobal'
-          initCastingManagerForWindow(evt.currentTarget.ownerGlobal);
-        }
-
-        // update device's services
-        _updateServices(evt.detail.deviceInfo.id, evt.detail.deviceInfo.name);
-        break;
-
-      case 'update':
-        PresentationDevices.update(evt.detail.deviceInfo);
-
-        // update device's services
-        _updateServices(evt.detail.deviceInfo.id, evt.detail.deviceInfo.name);
-        break;
-
-      case 'remove':
-        PresentationDevices.remove(evt.detail.deviceInfo);
-        // If the device list is empty now, then CastingManager is no longer
-        // needed for this window
-        if (!PresentationDevices.getList().length) {
-          uninitCastingManagerForWindow(evt.currentTarget.ownerGlobal);
-        }
-        break;
-
-      default:
-        DEBUG_LOG('No event handler for this type');
-        break;
-    }
-  }
-
-  function _mdnsResolveService(host, serviceName, serviceType) {
-    DEBUG_LOG('# PresentationDeviceManager._mdnsResolveService');
-    serviceType = serviceType || "_http._tcp.";
-    let serviceInfo = Cc["@mozilla.org/toolkit/components/mdnsresponder/dns-info;1"].
-                      createInstance(Ci.nsIDNSServiceInfo);
-    serviceInfo.host = host;
-    serviceInfo.address = host;
-    serviceInfo.serviceType = serviceType;
-    serviceInfo.serviceName = serviceName;
-    serviceInfo.domainName = "local";
-
-    let mdns = Cc["@mozilla.org/toolkit/components/mdnsresponder/dns-sd;1"].
-               getService(Ci.nsIDNSServiceDiscovery);
-    mdns.resolveService(serviceInfo, _listener);
-  }
-
-  function _updateServices(id, name, type) {
-    DEBUG_LOG('# PresentationDeviceManager._updateServices >> id: ' + id + ', name: ' + name);
-    // The id of a presentation deviceis its ip, so we use it as host value.
-    // The name of a presentation device is same as the serviceName of mDNS.
-    _mdnsResolveService(id, name, type);
-  }
-
-  function _loadDevices(window, callback) {
-    DEBUG_LOG('# PresentationDeviceManager._loadDevices');
-    // Load avaliable devices into list
-    window.navigator.mozPresentationDeviceInfo.getAll()
-    .then(function(devices) {
-
-      if (devices === undefined || !devices.length) {
-        return;
-      }
-
-      // Add these devices into list
-      PresentationDevices.setList(devices);
-      DEBUG_LOG(PresentationDevices.getList());
-
-      // Update devices' services
-      devices.forEach(function(dev, index, list){
-        _updateServices(dev.id, dev.name);
-      });
-
-      if (callback) {
-        callback();
-      }
-
-    }, function(error) {
-      DEBUG_LOG(error);
-    });
-  }
-
-  function init(window) {
-    DEBUG_LOG('# PresentationDeviceManager.init');
-
-    if (!window.navigator.mozPresentationDeviceInfo) {
-      DEBUG_LOG('  >> mozPresentationDeviceInfo should be available');
-      return;
-    }
-
-    // Add event listener for devicechange
-    window.navigator.mozPresentationDeviceInfo.addEventListener('devicechange', _handleEvent);
-
-    // Load existed presentation devices
-    _loadDevices(window, function(){
-      // Initialize CastingManager for this window if it doesn't exist
-      initCastingManagerForWindow(window);
-    });
-  }
-
-  function uninit(window) {
-    DEBUG_LOG('# PresentationDeviceManager.uninit');
-    window.navigator.mozPresentationDeviceInfo.removeEventListener('devicechange', _handleEvent);
-  }
-
-  return {
-    init: init,
-    uninit: uninit,
-    get deviceAvailable() {
-      return _deviceAvailable();
-    },
-  };
-};
+// Import a presentationDevices module.
+XPCOMUtils.defineLazyGetter(this, "PresentationDeviceManager", function() {
+  let sandbox = {};
+  Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationDeviceManager.js", sandbox);
+  return sandbox["PresentationDeviceManager"];
+});
 
 
 // PresentationConnectionManager
 // ----------------------
-var PresentationConnectionManager = function() {
-
-  var _presentation = {
-    // hold the presentation's connection
-    session: null,
-    // keep track the message sequence
-    seq: 0,
-    // detect the
-    sessionCloseExpected: false,
-  };
-
-  function _reset() {
-    DEBUG_LOG('# PresentationConnectionManager._reset');
-    _presentation.sessionCloseExpected = false;
-    _presentation.session = null;
-    _presentation.seq = 0;
-  }
-
-  function _presentationOnMessage(evt) {
-    DEBUG_LOG('# PresentationConnectionManager._presentationOnMessage');
-    DEBUG_LOG(evt);
-  }
-
-  function _presentationOnStatechange(evt) {
-    DEBUG_LOG('# PresentationConnectionManager._presentationOnStatechange');
-    DEBUG_LOG(evt);
-    DEBUG_LOG('  >> state: ' + _presentation.session.state);
-
-    if (_presentation.session && _presentation.session.state !== "connected") {
-      if (!_presentation.sessionCloseExpected) {
-        // The session is closed by server
-        DEBUG_LOG('The session unexpectedly lose connection!' );
-      }
-      _reset();
-    }
-  }
-
-  function _presentationPrompt(deviceId) {
-    DEBUG_LOG('# PresentationConnectionManager._presentationPrompt');
-    return new Promise(function(resolve, reject) {
-      // Get presentation-device-prompt XPCOM object
-      let prompt = Cc["@mozilla.org/presentation-device/prompt;1"].getService(Ci.nsIObserver);
-      if (!prompt) {
-        reject('No available presentationDevicePrompt XPCOM');
-      }
-      // Add listener for "presentation-select-device" signal to
-      // the presentation-device-prompt XPCOM object everytime
-      // before building a session because the
-      // presentation-device-prompt XPCOM object will remove
-      // "presentation-select-device" signal listener after receiving it.
-      Services.obs.addObserver(prompt, "presentation-select-device", false);
-
-      let _presObserver = {
-        observe: function (subject, topic, data) {
-          if (topic == "presentation-prompt-ready") {
-            resolve();
-          } else {
-            reject('Receive unexpected notification');
-          }
-        }
-      };
-
-      // The presentation-device-prompt XPCOM will fire a
-      // "presentation-prompt-ready" signal upon it receive
-      // the "presentation-select-device" signal
-      Services.obs.addObserver(_presObserver, "presentation-prompt-ready", false);
-      Services.obs.notifyObservers(null, "presentation-select-device", deviceId);
-    });
-  }
-
-  function _startSession(window, url) {
-    DEBUG_LOG('# PresentationConnectionManager._startSession');
-    return new Promise(function(resolve, reject) {
-      let presentationRequest = new window.PresentationRequest(url);
-      presentationRequest.start().then(function(session){
-        if (session.id && session.state == "connected") {
-          _presentation.session = session;
-          _presentation.session.onmessage = _presentationOnMessage;
-          _presentation.session.onstatechange = _presentationOnStatechange;
-          resolve();
-        } else {
-          reject('session.id or session.state is wrong!');
-        }
-      }).catch(function(error) {
-        reject(error);
-      });
-    });
-  }
-
-  function sendCommand(command, data) {
-    DEBUG_LOG('# PresentationConnectionManager.sendCommand');
-    var msg = {
-      'type': command,
-      'seq': ++_presentation.seq
-    };
-
-    for (var i in data) {
-      msg[i] = data[i];
-    }
-    _presentation.session.send(JSON.stringify(msg));
-  }
-
-  function _disconnect(terminate) {
-    DEBUG_LOG('# PresentationConnectionManager.disconnect');
-    if (_presentation.session) {
-      _presentation.sessionCloseExpected = true;
-      (terminate)? _presentation.session.terminate() : _presentation.session.close();
-      // _presentation.session will be set to null once
-      // _presentation.session.state is changed to 'terminated' or 'closed'
-      if (!_presentation.session.onmessage) {
-        _presentation.session.onmessage = _presentationOnMessage;
-      }
-    }
-  }
-
-  // TODO: close semantics is not ready now(Bug 1210340).
-  // Uncomment the line after close semantic is ready
-  function close() {
-    DEBUG_LOG('# PresentationConnectionManager.close');
-    // _disconnect(false);
-    return;
-  }
-
-  function terminate() {
-    DEBUG_LOG('# PresentationConnectionManager.terminate');
-    _disconnect(true);
-  }
-
-  function connect(window, url, target) {
-    DEBUG_LOG('# PresentationConnectionManager.connect');
-    return new Promise(function(resolve, reject) {
-      _presentationPrompt(target.id).then(function(result) {
-        return _startSession(window, url);
-      }).then(function(result) {
-        resolve(result);
-      }).catch(function(error){
-        reject(error);
-      });
-    });
-  }
-
-  function init(window) {
-    DEBUG_LOG('# PresentationConnectionManager.init');
-
-    // Check the preferences and permissions for presentation API
-    if (!window.navigator.presentation ||
-        !window.PresentationRequest) {
-      DEBUG_LOG('  >> navigator.presentation or PresentationRequest should be available');
-      return;
-    }
-  }
-
-  function uninit() {
-    DEBUG_LOG('# PresentationConnectionManager.uninit');
-  }
-
-  return {
-    init: init,
-    uninit: uninit,
-    connect: connect,
-    sendCommand: sendCommand,
-    terminate: terminate,
-    close: close
-  };
-};
+XPCOMUtils.defineLazyGetter(this, "PresentationConnectionManager", function() {
+  let sandbox = {};
+  Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationConnectionManager.js", sandbox);
+  return sandbox["PresentationConnectionManager"];
+});
 
 // PresentationManager
 // ----------------------
@@ -547,23 +138,23 @@ PresentationManager.prototype = {
   deviceManager: null,
 
   init: function(window) {
-    DEBUG_LOG('# PresentationManager.init');
+    Debugger.log('# PresentationManager.init');
 
     if (!this.deviceManager) {
-      DEBUG_LOG('  >> Create a PresentationDeviceManager');
+      Debugger.log('  >> Create a PresentationDeviceManager');
       this.deviceManager = new PresentationDeviceManager();
       this.deviceManager.init(window);
     }
 
     if (!this.connectionManager) {
-      DEBUG_LOG('  >> Create a PresentationConnectionManager');
+      Debugger.log('  >> Create a PresentationConnectionManager');
       this.connectionManager = new PresentationConnectionManager();
       this.connectionManager.init(window);
     }
   },
 
   uninit:function(window) {
-    DEBUG_LOG('# PresentationManager.uninit');
+    Debugger.log('# PresentationManager.uninit');
 
     if (this.deviceManager) {
       this.deviceManager.uninit(window);
@@ -578,19 +169,19 @@ PresentationManager.prototype = {
 };
 
 function initPresentationManagerForWindow(window) {
-  DEBUG_LOG('$$$ initPresentationManagerForWindow');
+  Debugger.log('$$$ initPresentationManagerForWindow');
 
   if (!window.hasOwnProperty('presentationManager')) {
-    DEBUG_LOG('  >> Create PresentationManager for this window');
+    Debugger.log('  >> Create PresentationManager for this window');
     window.presentationManager = new PresentationManager();
     window.presentationManager.init(window);
   }
 }
 
 function uninitPresentationManagerForWindow(window) {
-  DEBUG_LOG('$$$ uninitPresentationManagerForWindow');
+  Debugger.log('$$$ uninitPresentationManagerForWindow');
   if (window.hasOwnProperty('presentationManager')) {
-    DEBUG_LOG('  >> Delete PresentationManager for this window');
+    Debugger.log('  >> Delete PresentationManager for this window');
     window.presentationManager.uninit();
     delete window.presentationManager;
   }
@@ -612,7 +203,7 @@ var CastingManager = function() {
     }
 
     function _castVideo(window, target) {
-      DEBUG_LOG('# CastingManager._castVideo');
+      Debugger.log('# CastingManager._castVideo');
       var currentURL = _getCurrentURL(window);
       // window.alert('TODO: Cast video from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
@@ -621,7 +212,7 @@ var CastingManager = function() {
     }
 
     function _castWebpage(window, target) {
-      DEBUG_LOG('# CastingManager._castWebpage');
+      Debugger.log('# CastingManager._castWebpage');
       var currentURL = _getCurrentURL(window);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // cast webpage here...
@@ -632,14 +223,14 @@ var CastingManager = function() {
           window.presentationManager.connectionManager.close();
         }).catch(function(error){
           window.NativeWindow.toast.show(Strings.GetStringFromName("toast.request.fail"), "long");
-          DEBUG_LOG(error);
+          Debugger.log(error);
           window.presentationManager.connectionManager.terminate();
         });
       }
     }
 
     function _pinWebpageToHomescreen(window, target) {
-      DEBUG_LOG('# CastingManager._pinWebpageToHomescreen');
+      Debugger.log('# CastingManager._pinWebpageToHomescreen');
       var currentURL = _getCurrentURL(window);
       // window.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
       if (window.presentationManager && window.presentationManager.connectionManager) {
@@ -648,8 +239,8 @@ var CastingManager = function() {
     }
 
     function _remoteControl(window, target) {
-      DEBUG_LOG('# CastingManager._remoteControl');
-      DEBUG_LOG(target);
+      Debugger.log('# CastingManager._remoteControl');
+      Debugger.log(target);
       var currentURL = _getCurrentURL(window);
       if (window.presentationManager && window.presentationManager.connectionManager) {
         // remote control to TV here...
@@ -659,14 +250,14 @@ var CastingManager = function() {
           // We need to cast a webpage first
           window.presentationManager.connectionManager.sendCommand("view", { "url": currentURL, "timestamp": Date.now() });
           // and open a remote control tab
-          DEBUG_LOG(">> ip: " + target.id);
-          DEBUG_LOG(">> port and path: " + target.remoteControlPortAndPath);
+          Debugger.log(">> ip: " + target.id);
+          Debugger.log(">> port and path: " + target.remoteControlPortAndPath);
           window.BrowserApp.addTab(target.id + target.remoteControlPortAndPath);
           // close the session
           window.presentationManager.connectionManager.close();
         }).catch(function(error){
           window.NativeWindow.toast.show(Strings.GetStringFromName("toast.request.fail"), "long");
-          DEBUG_LOG(error);
+          Debugger.log(error);
           window.presentationManager.connectionManager.terminate();
         });
       }
@@ -682,42 +273,16 @@ var CastingManager = function() {
     // reference: using 'mozAllowCasting' for video tag
     // https://dxr.mozilla.org/mozilla-central/source/mobile/android/chrome/content/browser.js#4341
     function _findCastableVideo(browser) {
-      DEBUG_LOG('# CastingManager._findCastableVideo');
-      if (!browser) {
-        return null;
-      }
-
-      // Scan for a <video> being actively cast. Also look for a castable <video>
-      // on the page.
-      let castableVideo = null;
-      let videos = browser.contentDocument.querySelectorAll("video");
-      DEBUG_LOG(videos);
-      for (let video of videos) {
-        DEBUG_LOG(video);
-        if (video.mozIsCasting) {
-          // This <video> is cast-active. Break out of loop.
-          return video;
-        }
-
-        DEBUG_LOG(video.paused);
-        DEBUG_LOG(video.mozAllowCasting);
-        if (!video.paused && video.mozAllowCasting) {
-          // This <video> is cast-ready. Keep looking so cast-active could be found.
-          castableVideo = video;
-        }
-      }
-
-      // Could be null
-      DEBUG_LOG(castableVideo);
-      return castableVideo;
+      Debugger.log('# CastingManager._findCastableVideo');
+      return false;
     }
 
 
     function _setPageActionIcon(window) {
-      DEBUG_LOG('# CastingManager._setPageActionIcon');
+      Debugger.log('# CastingManager._setPageActionIcon');
       // pageActionIncon has already been set
       if (_pageActionIcon) {
-        DEBUG_LOG('  >> pageActionIcon alreay exist!');
+        Debugger.log('  >> pageActionIcon alreay exist!');
         return;
       }
 
@@ -727,20 +292,28 @@ var CastingManager = function() {
     }
 
     function _addPageAction(window) {
-      DEBUG_LOG('# CastingManager._addPageAction');
+      Debugger.log('# CastingManager._addPageAction');
+
       if (_pageActionId) {
-        DEBUG_LOG('  >> PageActionsIcon already exist!');
+        Debugger.log('  >> PageActions already exist!');
         return;
       }
+
+      if (!_pageActionIcon) {
+        Debugger.log('  >> PageActionsIcon doesn\'t be set yet!');
+        return;
+      }
+
       _pageActionId = PageActions.add({
         icon: _pageActionIcon,
         title: Strings.GetStringFromName("pageaction.title"),
         clickCallback: () => _chooseAction(window)
       });
+      Debugger.log('##### finish adding PageAction!');
     }
 
     function _chooseAction(window) {
-      DEBUG_LOG('# CastingManager._chooseAction');
+      Debugger.log('# CastingManager._chooseAction');
       var promptInfo = _promptInfoGenerator(window);
 
       var p = new Prompt({
@@ -750,7 +323,7 @@ var CastingManager = function() {
       p.setSingleChoiceItems(promptInfo.menu);
 
       p.show(function(data) {
-        DEBUG_LOG('  >> press button: ' + data.button);
+        Debugger.log('  >> press button: ' + data.button);
         // Fire callbacks with corresponding target device
         if (data.button > 0 && promptInfo.callbacks[data.button]) {
           promptInfo.callbacks[data.button](window, promptInfo.targets[data.button]);
@@ -759,8 +332,6 @@ var CastingManager = function() {
     }
 
     function _promptInfoGenerator(window) {
-      var videoCastable = _findCastableVideo(window.BrowserApp.selectedBrowser);
-
       // Prompt menu
       var menu = [];
 
@@ -772,6 +343,9 @@ var CastingManager = function() {
 
       // Load devices information into prompt munu and set its callbacks
       var devices = PresentationDevices.getList();
+
+      // Find whether or not there is video in content that can be casted
+      var videoCastable = _findCastableVideo(window.BrowserApp.selectedBrowser);
 
       var key = 0;
       for (var i in devices) {
@@ -812,8 +386,8 @@ var CastingManager = function() {
     }
 
     function _handleEvent(evt) {
-      DEBUG_LOG('# CastingManager._handleEvent: ' + evt.type);
-      DEBUG_LOG(evt);
+      Debugger.log('# CastingManager._handleEvent: ' + evt.type);
+      Debugger.log(evt);
       switch (evt.type) {
         case 'pageshow': {
           let domWindow = evt.currentTarget;
@@ -828,22 +402,22 @@ var CastingManager = function() {
           break;
         }
         default:
-          DEBUG_LOG('No event handler for this type');
+          Debugger.log('No event handler for this type');
           break;
       }
     }
 
     function _removePageAction() {
-      DEBUG_LOG('# CastingManager._removePageAction');
+      Debugger.log('# CastingManager._removePageAction');
       if (_pageActionId) {
-        DEBUG_LOG('  >> Remove existing PageActionIcon!');
+        Debugger.log('  >> Remove existing PageActionIcon!');
         PageActions.remove(_pageActionId);
         _pageActionId = null;
       }
     }
 
     function _updatePageActionForTab(window, tab) {
-      DEBUG_LOG('# CastingManager._updatePageActionForTab');
+      Debugger.log('# CastingManager._updatePageActionForTab');
       // We only care about events on the selected tab
       if (tab != window.BrowserApp.selectedTab) {
         return;
@@ -853,9 +427,9 @@ var CastingManager = function() {
     }
 
     function _updatePageAction(window) {
-      DEBUG_LOG('# CastingManager._updatePageAction');
+      Debugger.log('# CastingManager._updatePageAction');
       if (!_shouldCast(window)) {
-        DEBUG_LOG('  >> no need to cast!');
+        Debugger.log('  >> no need to cast!');
         _removePageAction();
         return;
       }
@@ -864,7 +438,7 @@ var CastingManager = function() {
     }
 
     function init(window) {
-      DEBUG_LOG('# CastingManager.init');
+      Debugger.log('# CastingManager.init');
 
       if (!_isCastingEnabled()) {
         return;
@@ -886,7 +460,7 @@ var CastingManager = function() {
     }
 
     function uninit(window) {
-      DEBUG_LOG('# CastingManager.uninit');
+      Debugger.log('# CastingManager.uninit');
       _removePageAction();
       window.removeEventListener('pageshow', _handleEvent);
       window.BrowserApp.deck.removeEventListener('TabSelect', _handleEvent);
@@ -899,19 +473,22 @@ var CastingManager = function() {
 };
 
 function initCastingManagerForWindow(window) {
-  DEBUG_LOG('$$$ initCastingManagerForWindow');
+  Debugger.log('$$$ initCastingManagerForWindow');
 
-  if (!window.hasOwnProperty('castingManager')) {
-    DEBUG_LOG('  >> Create CastingManager for this window');
-    window.castingManager = new CastingManager();
-    window.castingManager.init(window);
+  if (window.hasOwnProperty('castingManager')) {
+    Debugger.log('  >> CastingManager already exist! Delete it first!');
+    uninitCastingManagerForWindow(window);
   }
+
+  Debugger.log('  >> Create CastingManager for this window');
+  window.castingManager = new CastingManager();
+  window.castingManager.init(window);
 }
 
 function uninitCastingManagerForWindow(window) {
-  DEBUG_LOG('$$$ uninitCastingManagerForWindow');
+  Debugger.log('$$$ uninitCastingManagerForWindow');
   if (window.hasOwnProperty('castingManager')) {
-    DEBUG_LOG('  >> Delete CastingManager for this window');
+    Debugger.log('  >> Delete CastingManager for this window');
     window.castingManager.uninit(window);
     delete window.castingManager;
   }
@@ -922,7 +499,7 @@ function uninitCastingManagerForWindow(window) {
  * ==================================
  */
 function loadIntoWindow(window) {
-  DEBUG_LOG('### loadIntoWindow: ');
+  Debugger.log('### loadIntoWindow: ');
 
   // Initialize PresentationManager for this window
   initPresentationManagerForWindow(window);
@@ -932,7 +509,7 @@ function loadIntoWindow(window) {
 }
 
 function unloadFromWindow(window) {
-  DEBUG_LOG('### unloadFromWindow');
+  Debugger.log('### unloadFromWindow');
 
   // Remove PresentationManager from this window
   uninitPresentationManagerForWindow(window);
@@ -953,12 +530,12 @@ function unloadFromWindow(window) {
  */
 var windowListener = {
   onOpenWindow: function(aWindow) {
-    DEBUG_LOG('windowListener >> onOpenWindow');
+    Debugger.log('windowListener >> onOpenWindow');
     // Wait for the window to finish loading
     let domWindow = aWindow.QueryInterface(Ci.nsIInterfaceRequestor)
             .getInterface(Ci.nsIDOMWindowInternal || Ci.nsIDOMWindow);
     function loadListener() {
-      DEBUG_LOG('  >> loadListener()');
+      Debugger.log('  >> loadListener()');
       domWindow.removeEventListener("load", loadListener, false);
       loadIntoWindow(domWindow);
     }
@@ -966,16 +543,16 @@ var windowListener = {
   },
 
   onCloseWindow: function(aWindow) {
-    DEBUG_LOG('windowListener >> onCloseWindow');
+    Debugger.log('windowListener >> onCloseWindow');
   },
 
   onWindowTitleChange: function(aWindow, aTitle) {
-    DEBUG_LOG('windowListener >> onWindowTitleChange');
+    Debugger.log('windowListener >> onWindowTitleChange');
   }
 };
 
 function startup(aData, aReason) {
-  DEBUG_LOG('startup!');
+  Debugger.log('startup!');
   // Load into any existing windows
   let windows = Services.wm.getEnumerator("navigator:browser");
   while (windows.hasMoreElements()) {
@@ -988,7 +565,7 @@ function startup(aData, aReason) {
 }
 
 function shutdown(aData, aReason) {
-  DEBUG_LOG('shutdown!');
+  Debugger.log('shutdown!');
   // When the application is shutting down we normally don't have to clean
   // up any UI changes made
   if (aReason == APP_SHUTDOWN) {
@@ -1007,9 +584,9 @@ function shutdown(aData, aReason) {
 }
 
 function install(aData, aReason) {
-  DEBUG_LOG('install!');
+  Debugger.log('install!');
 }
 
 function uninstall(aData, aReason) {
-  DEBUG_LOG('uninstall!');
+  Debugger.log('uninstall!');
 }
