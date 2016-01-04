@@ -188,7 +188,8 @@ function uninitPresentationManagerForWindow(window) {
 }
 
 
-
+// CastingManager
+// ----------------------
 var CastingManager = function() {
 
     var _pageActionIcon = null,
@@ -325,6 +326,7 @@ var CastingManager = function() {
       p.show(function(data) {
         Debugger.log('  >> press button: ' + data.button);
         // Fire callbacks with corresponding target device
+        // If user touches outside of this menu, then data.button = -1
         if (data.button > 0 && promptInfo.callbacks[data.button]) {
           promptInfo.callbacks[data.button](window, promptInfo.targets[data.button]);
         }
