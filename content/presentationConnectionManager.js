@@ -7,7 +7,7 @@ var PresentationConnectionManager = function() {
     session: null,
     // keep track the message sequence
     seq: 0,
-    // detect the
+    // detect whether or not the session is disconnected by ourselves
     sessionCloseExpected: false,
   };
 
