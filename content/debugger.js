@@ -2,7 +2,7 @@
 
 var Debugger = {
   enable: false,
-  log: (msg) => {
-    console.log(msg);
+  log: function(msg) {
+    this.enable && console.log(msg);
   }
 };
