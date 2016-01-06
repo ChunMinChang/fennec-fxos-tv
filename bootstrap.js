@@ -15,21 +15,19 @@
  */
 
 
-
-
 /*
  * Images
  * ==================================
  */
- const ICON_HDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAWCAYAAAAxSueLAAAAAXNSR0IArs4c6QAAAOdJREFUSA3tlj0KwkAQhd8LqUQLD6EnsPMI4hkSiEX8KS30BNrYiiBBPYN4BUt7vYSgtjpOlHQjGHCtss2ws7PvzX7NLINOtw9gCpGyRjeLvKnwyKfIRAB3Rmn7+hACE1+NKul+kyx072YFUSypj+dG3lYtzGwuObMFxpzA7PICo80lZ7bAmBOYXf5XjAyj+JKNGbuf32R1fl09Icd4T9LfqFoqqv/ysc5c5T5O5zDqtYHHTBHXvjYnTxQO18l8a935aJYVB9GgCe/e0r9KA8K6mldBlChQNDirwFFrDyR3q+V8n92z4hNcNDP6qelDfAAAAABJRU5ErkJggg==";
- const ICON_XHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAeCAYAAABE4bxTAAAAAXNSR0IArs4c6QAAAUtJREFUWAntl7tKxEAUhs85SWFjsz6Bha0KYuEFLCx8g1ia9QKSp8gj2CyKi5dtfQ8RFcQV7CwstPNSWiXHfxZcdiHkCMKOCzMQksxP5nz5MgMTTveyeSrLcyWaJSLG4aMpCj+QSCqkegaYOVD4gnECuMcAFlFVB/MvmmOJQdI30zk56l+PknBrZx+Ceo1llIV/UysAWZaCoWDIMmDlYQ4FQ5YBKw9zKBiyDFh5mENjZ4ixfSxB7WXrWmFLhZm7FYGXLsciUazb0OOgfjbaPmDcf1mXmJs+io9XTXMyN3ezzVK1hS869bdX4/dIJDttty7qxonqQpfd390+Li6sdJT1C/Qz6Jq0nhnKmV5F+GAi1rR9fHgzlFXcmIYGn8nzPH5+eVslKpaxApaQTcNcg4kbOBfo+8CAnzg/YcVcw8jVxvraZZIkxeA4ddff5klO7Te5Hm4AAAAASUVORK5CYII=";
- const ICON_XXHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADYAAAAtCAYAAADlVJiFAAAAAXNSR0IArs4c6QAAAf1JREFUaAXtms1KQkEUx88ZfYCgwha1CVr0AbWolvkEPUGFiB+oiyCC3Lp1FYSUaCYSPUPr3AUREaQEtWrjQl8guvd0pkVIKc29QpxbMyDemXvmzP+c34wDziBwiaVyW0hunggWuBrSbQEsDiK0CFWxUT2+wHgyu+0SnQcwkKGSFeKOcgnyQy0C+oKADhQAzQdU/1DZeklxYIFdU0MD0zGFB71t1Mo4qF1qWyyRoa/aNLE/WWxgQcNqiVliQjJgp6IQEMYyLDHjVAkxtMSEgDCWYYkZp0qIoSUmBISxDEvMOFVCDC0xISCMZVhixqkSYmiJCQFhLMMSM06VEEMc9PewEG0jydBT0RnJg8zODgeGbZna/KvSJ5tKIRT9u5DZUx/Xhu5ub+5XVtefEGiOZU7wJ6i/lPoM+gGU2tdn0DJTblX9wwx4PpKNJTO7CHhIRL+yFhGRLzbQXuO0fOSFj+fAtPN4KhslF854wFkvg3m2RXjmOxuJevXkymtfX1n/GGgmsqhAZZjeo9dBf7RHbKNSaZyeWvITlPbvi1i/MJ6SmEjnNh0XEuxsgymO9b83fkbocpKavNvU6tXSJU/BbzcBjH2x4ciB9Q9WKBTUS6ez7LxhlNvXgCjC37w34iSPNM71V673WHGXhff4ucP753UYQ81KpdQaNRj291neAeiAdCFRHoGDAAAAAElFTkSuQmCC";
+const ICON_HDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAWCAYAAAAxSueLAAAAAXNSR0IArs4c6QAAAOdJREFUSA3tlj0KwkAQhd8LqUQLD6EnsPMI4hkSiEX8KS30BNrYiiBBPYN4BUt7vYSgtjpOlHQjGHCtss2ws7PvzX7NLINOtw9gCpGyRjeLvKnwyKfIRAB3Rmn7+hACE1+NKul+kyx072YFUSypj+dG3lYtzGwuObMFxpzA7PICo80lZ7bAmBOYXf5XjAyj+JKNGbuf32R1fl09Icd4T9LfqFoqqv/ysc5c5T5O5zDqtYHHTBHXvjYnTxQO18l8a935aJYVB9GgCe/e0r9KA8K6mldBlChQNDirwFFrDyR3q+V8n92z4hNcNDP6qelDfAAAAABJRU5ErkJggg==";
+const ICON_XHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACQAAAAeCAYAAABE4bxTAAAAAXNSR0IArs4c6QAAAUtJREFUWAntl7tKxEAUhs85SWFjsz6Bha0KYuEFLCx8g1ia9QKSp8gj2CyKi5dtfQ8RFcQV7CwstPNSWiXHfxZcdiHkCMKOCzMQksxP5nz5MgMTTveyeSrLcyWaJSLG4aMpCj+QSCqkegaYOVD4gnECuMcAFlFVB/MvmmOJQdI30zk56l+PknBrZx+Ceo1llIV/UysAWZaCoWDIMmDlYQ4FQ5YBKw9zKBiyDFh5mENjZ4ixfSxB7WXrWmFLhZm7FYGXLsciUazb0OOgfjbaPmDcf1mXmJs+io9XTXMyN3ezzVK1hS869bdX4/dIJDttty7qxonqQpfd390+Li6sdJT1C/Qz6Jq0nhnKmV5F+GAi1rR9fHgzlFXcmIYGn8nzPH5+eVslKpaxApaQTcNcg4kbOBfo+8CAnzg/YcVcw8jVxvraZZIkxeA4ddff5klO7Te5Hm4AAAAASUVORK5CYII=";
+const ICON_XXHDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADYAAAAtCAYAAADlVJiFAAAAAXNSR0IArs4c6QAAAf1JREFUaAXtms1KQkEUx88ZfYCgwha1CVr0AbWolvkEPUGFiB+oiyCC3Lp1FYSUaCYSPUPr3AUREaQEtWrjQl8guvd0pkVIKc29QpxbMyDemXvmzP+c34wDziBwiaVyW0hunggWuBrSbQEsDiK0CFWxUT2+wHgyu+0SnQcwkKGSFeKOcgnyQy0C+oKADhQAzQdU/1DZeklxYIFdU0MD0zGFB71t1Mo4qF1qWyyRoa/aNLE/WWxgQcNqiVliQjJgp6IQEMYyLDHjVAkxtMSEgDCWYYkZp0qIoSUmBISxDEvMOFVCDC0xISCMZVhixqkSYmiJCQFhLMMSM06VEEMc9PewEG0jydBT0RnJg8zODgeGbZna/KvSJ5tKIRT9u5DZUx/Xhu5ub+5XVtefEGiOZU7wJ6i/lPoM+gGU2tdn0DJTblX9wwx4PpKNJTO7CHhIRL+yFhGRLzbQXuO0fOSFj+fAtPN4KhslF854wFkvg3m2RXjmOxuJevXkymtfX1n/GGgmsqhAZZjeo9dBf7RHbKNSaZyeWvITlPbvi1i/MJ6SmEjnNh0XEuxsgymO9b83fkbocpKavNvU6tXSJU/BbzcBjH2x4ciB9Q9WKBTUS6ez7LxhlNvXgCjC37w34iSPNM71V673WHGXhff4ucP753UYQ81KpdQaNRj291neAeiAdCFRHoGDAAAAAElFTkSuQmCC";
 
 /*
  * XPCOM modules
  * ==================================
  */
- const { classes: Cc, interfaces: Ci, utils: Cu } = Components;
+const { classes: Cc, interfaces: Ci, utils: Cu } = Components;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -39,25 +37,28 @@ Cu.import('resource://gre/modules/PresentationDeviceInfoManager.jsm');
 Cu.import("resource://gre/modules/MulticastDNS.jsm");
 
 
-// Create a string bundle for localization.
-XPCOMUtils.defineLazyGetter(this, "Strings", function() {
-  return Services.strings.createBundle("chrome://fxostv/locale/fxostv.properties");
-});
-
-// Import a helper module.
-XPCOMUtils.defineLazyGetter(this, "Helper", function() {
-  let sandbox = {};
-  Services.scriptloader.loadSubScript("chrome://fxostv/content/helper.js", sandbox);
-  return sandbox["Helper"];
-});
-
-
 /*
  * Utils
  * ==================================
  */
 
-// Import a Debugger module.
+// Create a string bundle for localization.
+XPCOMUtils.defineLazyGetter(this, "Strings", function() {
+  return Services.strings.createBundle("chrome://fxostv/locale/fxostv.properties");
+});
+
+// Used to get window
+function GetRecentWindow() {
+	let window = Services.wm.getMostRecentWindow("navigator:browser");
+	return window;
+}
+
+/*
+ * Debugging
+ * ==================================
+ */
+// Debugger module
+// -----------------------------
 XPCOMUtils.defineLazyGetter(this, "Debugger", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/debugger.js", sandbox);
@@ -66,16 +67,9 @@ XPCOMUtils.defineLazyGetter(this, "Debugger", function() {
 // Enable the log
 Debugger.enable = true;
 
-// Used to get window
-function GetRecentWindow() {
-	let window = Services.wm.getMostRecentWindow("navigator:browser");
-	return window;
-}
-
-// For Debugging
-// ----------------------
+// Search devices manually
+// -----------------------------
 var gDiscoveryMenuId = null;
-
 function discoveryDevices(win) {
   Debugger.log("### discoveryDevices ###");
   win.navigator.mozPresentationDeviceInfo.getAll()
@@ -101,9 +95,8 @@ function discoveryDevices(win) {
  * Core Functions
  * ==================================
  */
-// PresentationDevices
-// ----------------------
-// Import a presentationDevices module.
+// PresentationDevices module
+// -----------------------------
 XPCOMUtils.defineLazyGetter(this, "PresentationDevices", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationDevices.js", sandbox);
@@ -111,9 +104,8 @@ XPCOMUtils.defineLazyGetter(this, "PresentationDevices", function() {
 });
 
 
-// PresentationDeviceManager
-// ----------------------
-// Import a presentationDevices module.
+// PresentationDeviceManager module
+// -----------------------------
 XPCOMUtils.defineLazyGetter(this, "PresentationDeviceManager", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationDeviceManager.js", sandbox);
@@ -121,16 +113,16 @@ XPCOMUtils.defineLazyGetter(this, "PresentationDeviceManager", function() {
 });
 
 
-// PresentationConnectionManager
-// ----------------------
+// PresentationConnectionManager module
+// -----------------------------
 XPCOMUtils.defineLazyGetter(this, "PresentationConnectionManager", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationConnectionManager.js", sandbox);
   return sandbox["PresentationConnectionManager"];
 });
 
-// PresentationManager
-// ----------------------
+// PresentationManager module
+// -----------------------------
 function PresentationManager() {}
 
 PresentationManager.prototype = {
@@ -189,7 +181,7 @@ function uninitPresentationManagerForWindow(window) {
 
 
 // CastingManager
-// ----------------------
+// -----------------------------
 var CastingManager = function() {
 
     var _pageActionIcon = null,
