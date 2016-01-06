@@ -287,16 +287,6 @@ var CastingManager = function() {
     function _addPageAction(window) {
       Debugger.log('# CastingManager._addPageAction');
 
-      // Simulate a static variable to avoid adding pageAction multiple times.
-      // This situation might happen when 'pageshow' or 'TabSelect' events are
-      // fired in one webpage multiple times.
-      if (typeof _addPageAction.isAdding !== 'undefined' &&
-          _addPageAction.isAdding) {
-        Debugger.log('  >> PageActions is adding now!');
-        return;
-      }
-      _addPageAction.isAdding = true;
-
       if (_pageActionId) {
         Debugger.log('  >> PageActions already exist!');
         return;
@@ -307,6 +297,17 @@ var CastingManager = function() {
         return;
       }
 
+      // Simulate a static variable to avoid adding pageAction multiple times.
+      // This situation might happen when 'pageshow' or 'TabSelect' events are
+      // fired in one webpage multiple times.
+      if (typeof _addPageAction._isAdding !== 'undefined' &&
+          _addPageAction._isAdding) {
+        Debugger.log('  >> PageActions is adding now!');
+        return;
+      }
+
+      _addPageAction._isAdding = true;
+
       _pageActionId = PageActions.add({
         icon: _pageActionIcon,
         title: Strings.GetStringFromName("pageaction.title"),
@@ -314,7 +315,7 @@ var CastingManager = function() {
       });
 
       Debugger.log('##### finish adding PageAction!');
-      _addPageAction.isAdding = false;
+      _addPageAction._isAdding = false;
     }
 
     function _chooseAction(window) {
