@@ -16,7 +16,7 @@
 
 
 /*
- * Images
+ * Images data-url
  * ==================================
  */
 const ICON_HDPI = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAAWCAYAAAAxSueLAAAAAXNSR0IArs4c6QAAAOdJREFUSA3tlj0KwkAQhd8LqUQLD6EnsPMI4hkSiEX8KS30BNrYiiBBPYN4BUt7vYSgtjpOlHQjGHCtss2ws7PvzX7NLINOtw9gCpGyRjeLvKnwyKfIRAB3Rmn7+hACE1+NKul+kyx072YFUSypj+dG3lYtzGwuObMFxpzA7PICo80lZ7bAmBOYXf5XjAyj+JKNGbuf32R1fl09Icd4T9LfqFoqqv/ysc5c5T5O5zDqtYHHTBHXvjYnTxQO18l8a935aJYVB9GgCe/e0r9KA8K6mldBlChQNDirwFFrDyR3q+V8n92z4hNcNDP6qelDfAAAAABJRU5ErkJggg==";
@@ -31,36 +31,10 @@ const { classes: Cc, interfaces: Ci, utils: Cu } = Components;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
-// Cu.import("resource://gre/modules/PageActions.jsm");
+Cu.import("resource://gre/modules/PageActions.jsm");
 Cu.import("resource://gre/modules/Prompt.jsm");
 Cu.import('resource://gre/modules/PresentationDeviceInfoManager.jsm');
 Cu.import("resource://gre/modules/MulticastDNS.jsm");
-
-
-/*
- * Utils
- * ==================================
- */
-
-// Create a string bundle for localization.
-XPCOMUtils.defineLazyGetter(this, "Strings", function() {
-  return Services.strings.createBundle("chrome://fxostv/locale/fxostv.properties");
-});
-
-// PageActionManager
-// -----------------------------
-// Dependence: PageAction.jsm
-XPCOMUtils.defineLazyGetter(this, "PageActionManager", function() {
-  let sandbox = {};
-  Services.scriptloader.loadSubScript("chrome://fxostv/content/pageActionManager.js", sandbox);
-  return sandbox["PageActionManager"];
-});
-
-// Used to get window
-function GetRecentWindow() {
-	let window = Services.wm.getMostRecentWindow("navigator:browser");
-	return window;
-}
 
 /*
  * Debugging
@@ -101,37 +75,77 @@ function discoveryDevices(win) {
 
 
 /*
+ * Utils
+ * ==================================
+ */
+
+// Create a string bundle for localization.
+XPCOMUtils.defineLazyGetter(this, "Strings", function() {
+  return Services.strings.createBundle("chrome://fxostv/locale/fxostv.properties");
+});
+
+// PageActionManager
+// -----------------------------
+// Dependence:
+//   debugger.js
+//   PageAction.jsm
+XPCOMUtils.defineLazyGetter(this, "PageActionManager", function() {
+  let sandbox = {};
+  Services.scriptloader.loadSubScript("chrome://fxostv/content/pageActionManager.js", sandbox);
+  return sandbox["PageActionManager"];
+});
+
+// Used to get window
+function GetRecentWindow() {
+	let window = Services.wm.getMostRecentWindow("navigator:browser");
+	return window;
+}
+
+
+/*
  * Core Functions
  * ==================================
  */
-// PresentationDevices module
-// -----------------------------
-XPCOMUtils.defineLazyGetter(this, "PresentationDevices", function() {
-  let sandbox = {};
-  Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationDevices.js", sandbox);
-  return sandbox["PresentationDevices"];
-});
-
-
-// PresentationDeviceManager module
-// -----------------------------
-XPCOMUtils.defineLazyGetter(this, "PresentationDeviceManager", function() {
-  let sandbox = {};
-  Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationDeviceManager.js", sandbox);
-  return sandbox["PresentationDeviceManager"];
-});
-
-
 // PresentationConnectionManager module
 // -----------------------------
+// Dependence:
+//   debugger.js
 XPCOMUtils.defineLazyGetter(this, "PresentationConnectionManager", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationConnectionManager.js", sandbox);
   return sandbox["PresentationConnectionManager"];
 });
 
+// PresentationDevices module
+// -----------------------------
+// Dependence:
+//   debugger.js
+XPCOMUtils.defineLazyGetter(this, "PresentationDevices", function() {
+  let sandbox = {};
+  Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationDevices.js", sandbox);
+  return sandbox["PresentationDevices"];
+});
+
+// PresentationDeviceManager module
+// -----------------------------
+// Dependence:
+//   debugger.js
+//   presentationDevices.js
+//   CastingManager for the owner window
+//     [function] initCastingManagerForWindow
+//     [function] uninitCastingManagerForWindow
+XPCOMUtils.defineLazyGetter(this, "PresentationDeviceManager", function() {
+  let sandbox = {};
+  Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationDeviceManager.js", sandbox);
+  return sandbox["PresentationDeviceManager"];
+});
+
 // PresentationManager module
 // -----------------------------
+// Dependence:
+//   debugger.js
+//   presentationConnectionManager.js
+//   presentationDeviceManager.js
 function PresentationManager() {}
 
 PresentationManager.prototype = {
@@ -191,6 +205,12 @@ function uninitPresentationManagerForWindow(window) {
 
 // CastingManager
 // -----------------------------
+// Dependence:
+//   debugger.js
+//   fxos.properties
+//   PresentationManager for the CastingManager's owner window
+//   PresentationDevices.js
+//   PageActionManager.js
 var CastingManager = function() {
 
     function _isCastingEnabled() {
@@ -355,13 +375,13 @@ var CastingManager = function() {
       Debugger.log(evt);
       switch (evt.type) {
         case 'pageshow': {
-          let domWindow = evt.currentTarget;
+          let domWindow = evt.currentTarget; //evt.currentTarget is ChromeWindow!
           let tab = domWindow.BrowserApp.getTabForWindow(evt.originalTarget.defaultView);
           _updatePageActionForTab(domWindow, tab);
           break;
         }
         case 'TabSelect': {
-          let domWindow = evt.view; //evt.view is ChromeWindow!
+          let domWindow = evt.view; //evt.view and evt.currentTarget.ownerGlobal are ChromeWindow!
           let tab = domWindow.BrowserApp.getTabForBrowser(evt.target);
           _updatePageActionForTab(domWindow, tab);
           break;
