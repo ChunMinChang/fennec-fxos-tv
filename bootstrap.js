@@ -209,15 +209,6 @@ var CastingManager = function() {
       return window.BrowserApp.selectedBrowser.currentURI.spec;
     }
 
-    function _castVideo(window, target) {
-      Debugger.log('# CastingManager._castVideo');
-      var currentURL = _getCurrentURL(window);
-      // window.alert('TODO: Cast video from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
-      if (window.presentationManager && window.presentationManager.connectionManager) {
-        // cast video here...
-      }
-    }
-
     function _castWebpage(window, target) {
       Debugger.log('# CastingManager._castWebpage');
       var currentURL = _getCurrentURL(window);
@@ -236,52 +227,10 @@ var CastingManager = function() {
       }
     }
 
-    function _pinWebpageToHomescreen(window, target) {
-      Debugger.log('# CastingManager._pinWebpageToHomescreen');
-      var currentURL = _getCurrentURL(window);
-      // window.alert('TODO: Pin webpage from page: ' + currentURL + '\n to ' + target.name + ': ' + target.id);
-      if (window.presentationManager && window.presentationManager.connectionManager) {
-        // pin webpage to home here...
-      }
-    }
-
-    function _remoteControl(window, target) {
-      Debugger.log('# CastingManager._remoteControl');
-      Debugger.log(target);
-      var currentURL = _getCurrentURL(window);
-      if (window.presentationManager && window.presentationManager.connectionManager) {
-        // remote control to TV here...
-        var appURL = "app://notification-receiver.gaiamobile.org/index.html";
-        window.presentationManager.connectionManager.connect(window, appURL, target).then(function(result) {
-          window.NativeWindow.toast.show(Strings.GetStringFromName("toast.request.send"), "long");
-          // We need to cast a webpage first
-          window.presentationManager.connectionManager.sendCommand("view", { "url": currentURL, "timestamp": Date.now() });
-          // and open a remote control tab
-          Debugger.log(">> ip: " + target.id);
-          Debugger.log(">> port and path: " + target.remoteControlPortAndPath);
-          window.BrowserApp.addTab(target.id + target.remoteControlPortAndPath);
-          // close the session
-          window.presentationManager.connectionManager.close();
-        }).catch(function(error){
-          window.NativeWindow.toast.show(Strings.GetStringFromName("toast.request.fail"), "long");
-          Debugger.log(error);
-          window.presentationManager.connectionManager.terminate();
-        });
-      }
-    }
-
     function _shouldCast(window) {
       var currentURL = _getCurrentURL(window);
       var validURL = currentURL.includes('http://') || currentURL.includes('https://');
       return validURL && window.presentationManager.deviceManager.deviceAvailable;
-    }
-
-    // TODO: Define conditions to cast video
-    // reference: using 'mozAllowCasting' for video tag
-    // https://dxr.mozilla.org/mozilla-central/source/mobile/android/chrome/content/browser.js#4341
-    function _findCastableVideo(browser) {
-      Debugger.log('# CastingManager._findCastableVideo');
-      return false;
     }
 
     function _chooseAction(window) {
@@ -317,21 +266,11 @@ var CastingManager = function() {
       // Load devices information into prompt munu and set its callbacks
       var devices = PresentationDevices.getList();
 
-      // Find whether or not there is video in content that can be casted
-      var videoCastable = _findCastableVideo(window.BrowserApp.selectedBrowser);
-
       var key = 0;
       for (var i in devices) {
         // Assume every device has valid name
         menu.push({ label: devices[i].name, header: true });
         ++key;
-
-        if (videoCastable && devices[i].castVideoEnabled) {
-          menu.push({ label: Strings.GetStringFromName("prompt.sendVideo") });
-          callbacks[key] = _castVideo;
-          targetDevices[key] = devices[i];
-          ++key;
-        }
 
         if (devices[i].castPageEnabled) {
           menu.push({ label: Strings.GetStringFromName("prompt.sendURL") });
@@ -340,19 +279,6 @@ var CastingManager = function() {
           ++key;
         }
 
-        if (devices[i].pinPageEnabled) {
-          menu.push({ label: Strings.GetStringFromName("prompt.addURL") });
-          callbacks[key] = _pinWebpageToHomescreen;
-          targetDevices[key] = devices[i];
-          ++key;
-        }
-
-        if (devices[i].remoteControlPortAndPath) {
-          menu.push({ label: Strings.GetStringFromName("prompt.remoteControl") });
-          callbacks[key] = _remoteControl;
-          targetDevices[key] = devices[i];
-          ++key;
-        }
       }
 
       return { menu: menu, callbacks: callbacks, targets:targetDevices };
