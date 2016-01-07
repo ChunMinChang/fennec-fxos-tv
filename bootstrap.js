@@ -47,6 +47,16 @@ XPCOMUtils.defineLazyGetter(this, "Strings", function() {
   return Services.strings.createBundle("chrome://fxostv/locale/fxostv.properties");
 });
 
+// PageActionManager
+// -----------------------------
+// PageAction.jsm
+// fxostv.properties
+XPCOMUtils.defineLazyGetter(this, "PageActionManager", function() {
+  let sandbox = {};
+  Services.scriptloader.loadSubScript("chrome://fxostv/content/pageActionManager.js", sandbox);
+  return sandbox["PageActionManager"];
+});
+
 // Used to get window
 function GetRecentWindow() {
 	let window = Services.wm.getMostRecentWindow("navigator:browser");
@@ -184,9 +194,6 @@ function uninitPresentationManagerForWindow(window) {
 // -----------------------------
 var CastingManager = function() {
 
-    var _pageActionIcon = null,
-        _pageActionId = null;
-
     function _isCastingEnabled() {
       return Services.prefs.getBoolPref("browser.casting.enabled");
     }
@@ -268,54 +275,6 @@ var CastingManager = function() {
     function _findCastableVideo(browser) {
       Debugger.log('# CastingManager._findCastableVideo');
       return false;
-    }
-
-
-    function _setPageActionIcon(window) {
-      Debugger.log('# CastingManager._setPageActionIcon');
-      // pageActionIncon has already been set
-      if (_pageActionIcon) {
-        Debugger.log('  >> pageActionIcon alreay exist!');
-        return;
-      }
-
-      _pageActionIcon = (window.devicePixelRatio <= 1.5)?
-                        ICON_HDPI : (window.devicePixelRatio <= 2)?
-                                    ICON_XHDPI : ICON_XXHDPI;
-    }
-
-    function _addPageAction(window) {
-      Debugger.log('# CastingManager._addPageAction');
-
-      if (_pageActionId) {
-        Debugger.log('  >> PageActions already exist!');
-        return;
-      }
-
-      if (!_pageActionIcon) {
-        Debugger.log('  >> PageActionsIcon doesn\'t be set yet!');
-        return;
-      }
-
-      // Simulate a static variable to avoid adding pageAction multiple times.
-      // This situation might happen when 'pageshow' or 'TabSelect' events are
-      // fired in one webpage multiple times.
-      if (typeof _addPageAction._isAdding !== 'undefined' &&
-          _addPageAction._isAdding) {
-        Debugger.log('  >> PageActions is adding now!');
-        return;
-      }
-
-      _addPageAction._isAdding = true;
-
-      _pageActionId = PageActions.add({
-        icon: _pageActionIcon,
-        title: Strings.GetStringFromName("pageaction.title"),
-        clickCallback: () => _chooseAction(window)
-      });
-
-      Debugger.log('##### finish adding PageAction!');
-      _addPageAction._isAdding = false;
     }
 
     function _chooseAction(window) {
@@ -414,15 +373,6 @@ var CastingManager = function() {
       }
     }
 
-    function _removePageAction() {
-      Debugger.log('# CastingManager._removePageAction');
-      if (_pageActionId) {
-        Debugger.log('  >> Remove existing PageActionIcon!');
-        PageActions.remove(_pageActionId);
-        _pageActionId = null;
-      }
-    }
-
     function _updatePageActionForTab(window, tab) {
       Debugger.log('# CastingManager._updatePageActionForTab');
       // We only care about events on the selected tab
@@ -437,11 +387,17 @@ var CastingManager = function() {
       Debugger.log('# CastingManager._updatePageAction');
       if (!_shouldCast(window)) {
         Debugger.log('  >> no need to cast!');
-        _removePageAction();
+        PageActionManager.remove();
         return;
       }
 
-      _addPageAction(window);
+      PageActionManager.add(() => _chooseAction(window));
+    }
+
+    function _getPageActionIcon(window) {
+      return (window.devicePixelRatio <= 1.5)?
+               ICON_HDPI : (window.devicePixelRatio <= 2)?
+                 ICON_XHDPI : ICON_XXHDPI;
     }
 
     function init(window) {
@@ -451,7 +407,7 @@ var CastingManager = function() {
         return;
       }
 
-      _setPageActionIcon(window);
+      PageActionManager.init(_getPageActionIcon(window));
 
       // Reload pageActionIcon in URL bar after page has been loaded
       window.addEventListener("pageshow", _handleEvent, true);
@@ -468,7 +424,7 @@ var CastingManager = function() {
 
     function uninit(window) {
       Debugger.log('# CastingManager.uninit');
-      _removePageAction();
+      PageActionManager.remove();
       window.removeEventListener('pageshow', _handleEvent);
       window.BrowserApp.deck.removeEventListener('TabSelect', _handleEvent);
     }
