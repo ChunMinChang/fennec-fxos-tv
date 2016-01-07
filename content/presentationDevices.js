@@ -7,10 +7,7 @@ var PresentationDevices = (function () {
     this.name = device.name || 'unidentified';
     this.type = device.type || 'unidentified';
     // Set initial function for searched presentation devices
-    this.castVideoEnabled = false;
     this.castPageEnabled = true;
-    this.pinPageEnabled = false;
-    this.remoteControlPortAndPath = false;
   }
 
   // To save all information of the presentation devices discovered
@@ -72,33 +69,12 @@ var PresentationDevices = (function () {
     }
   }
 
-  function updateServices(dnsServiceInfo) {
-    Debugger.log('# [PresentationDevices] updateService');
-
-    var index = _list.findIndex(function(dev) {
-      return dev.name == dnsServiceInfo.serviceName;
-    });
-
-    if (index > -1) {
-      Debugger.log("Updating " + _list[index].name + "'s service.....");
-      // TODO: Detecting which services will be updated
-      Debugger.log("  >> port: " + dnsServiceInfo.port);
-      // Debugger.log("  >> path: " + dnsServiceInfo.attributes.getPropertyAsAString("path"));
-      _list[index].remoteControlPortAndPath = ":" + dnsServiceInfo.port + "/";
-    }
-    // For Debug
-    else {
-       Debugger.log('  >> device doesn\'t exist!');
-    }
-  }
-
   return {
     setList: setList,
     getList: getList,
     add: addDevice,
     update: updateDevice,
     remove: removeDevice,
-    updateServices: updateServices
   };
 
 })();
