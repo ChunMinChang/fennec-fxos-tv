@@ -407,7 +407,8 @@ var CastingManager = function() {
         return;
       }
 
-      PageActionManager.init(_getPageActionIcon(window));
+      PageActionManager.init(_getPageActionIcon(window),
+                             Strings.GetStringFromName("pageaction.title"));
 
       // Reload pageActionIcon in URL bar after page has been loaded
       window.addEventListener("pageshow", _handleEvent, true);

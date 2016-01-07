@@ -3,10 +3,16 @@
 var PageActionManager = (function() {
 
   var _icon = null,
+      _title = null,
       _actionId = null;
 
-  function _setPageActionIcon(icon) {
+  function _setPageActionIcon(icon, title) {
     Debugger.log('# PageActionManager._setPageActionIcon');
+    if (!icon) {
+      Debugger.log('  >> no icon passed!');
+      return;
+    }
+
     // pageActionIncon has already been set
     if (_icon) {
       Debugger.log('  >> icon alreay exist!');
@@ -14,6 +20,8 @@ var PageActionManager = (function() {
     }
 
     _icon = icon;
+
+    _title = title || 'unidentified';
   }
 
   function removePageAction() {
@@ -29,7 +37,7 @@ var PageActionManager = (function() {
     Debugger.log('# PageActionManager._addPageAction');
 
     if (!callback) {
-      Debugger.log('  >> no callback!');
+      Debugger.log('  >> no callback passed!');
       return;
     }
 
@@ -45,16 +53,16 @@ var PageActionManager = (function() {
 
     _actionId = PageActions.add({
       icon: _icon,
-      title: Strings.GetStringFromName("pageaction.title"),
+      title: _title,
       clickCallback: callback
     });
 
     Debugger.log('##### finish adding PageAction!');
   }
 
-  function init(icon) {
+  function init(icon, title) {
     Debugger.log('# PageActionManager.init');
-    _setPageActionIcon(icon);
+    _setPageActionIcon(icon, title);
   }
 
   function uninit() {
