@@ -31,7 +31,7 @@ const { classes: Cc, interfaces: Ci, utils: Cu } = Components;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
-Cu.import("resource://gre/modules/PageActions.jsm");
+// Cu.import("resource://gre/modules/PageActions.jsm");
 Cu.import("resource://gre/modules/Prompt.jsm");
 Cu.import('resource://gre/modules/PresentationDeviceInfoManager.jsm');
 Cu.import("resource://gre/modules/MulticastDNS.jsm");
@@ -49,8 +49,7 @@ XPCOMUtils.defineLazyGetter(this, "Strings", function() {
 
 // PageActionManager
 // -----------------------------
-// PageAction.jsm
-// fxostv.properties
+// Dependence: PageAction.jsm
 XPCOMUtils.defineLazyGetter(this, "PageActionManager", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/pageActionManager.js", sandbox);
