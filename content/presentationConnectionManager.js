@@ -18,9 +18,29 @@ var PresentationConnectionManager = function() {
     _presentation.seq = 0;
   }
 
+  function _messageHandler(msg) {
+    Debugger.log('# PresentationConnectionManager._messageHandler: ' + msg.type);
+    switch(msg.type) {
+      case 'ack':
+        if (msg.error) {
+          Debugger.log('  >> ack error: ' + msg.error);
+        }
+        _disconnect(true);
+        break;
+      default:
+        break;
+    }
+  }
+
   function _presentationOnMessage(evt) {
     Debugger.log('# PresentationConnectionManager._presentationOnMessage');
     Debugger.log(evt);
+    Debugger.log('  >> Got message:' + evt.data);
+    var rawdata = '[' + evt.data.replace('}{', '},{') + ']';
+    var messages = JSON.parse(rawdata);
+    messages.forEach(message => {
+      _messageHandler(message);
+    });
   }
 
   function _presentationOnStatechange(evt) {
@@ -103,7 +123,7 @@ var PresentationConnectionManager = function() {
   }
 
   function _disconnect(terminate) {
-    Debugger.log('# PresentationConnectionManager.disconnect');
+    Debugger.log('# PresentationConnectionManager.disconnect: ' + terminate);
     if (_presentation.session) {
       _presentation.sessionCloseExpected = true;
       (terminate)? _presentation.session.terminate() : _presentation.session.close();
