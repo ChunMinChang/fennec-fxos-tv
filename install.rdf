@@ -4,10 +4,10 @@
     <Description about="urn:mozilla:install-manifest">
         <em:id>fxos.tv@mozilla.org</em:id>
         <em:type>2</em:type>
-        <em:name>Firefox OS TV</em:name>
+        <em:name>Send tab to TV</em:name>
         <em:version>1.0</em:version>
         <em:bootstrap>true</em:bootstrap>
-        <em:description>A Firefox for Android add-on to accompany your Firefox OS TV.</em:description>
+        <em:description>Sending webpages to Firefox OS TV from Firefox for Android.</em:description>
         <em:creator>Chun-Min Chang</em:creator>
 
         <!-- Mobile -->
