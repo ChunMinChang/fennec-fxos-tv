@@ -493,11 +493,11 @@ function unloadFromWindow(window) {
     window.NativeWindow.menu.remove(gDiscoveryMenuId);
   }
 
-  // Remove PresentationManager from this window
-  uninitPresentationManagerForWindow(window);
-
   // Remove CastingManager from this window
   uninitCastingManagerForWindow(window);
+
+  // Remove PresentationManager from this window
+  uninitPresentationManagerForWindow(window);
 }
 
 
