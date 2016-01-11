@@ -57,6 +57,18 @@ var PresentationConnectionManager = function() {
     }
   }
 
+  function _removeObserverForPresentationDevicePrompt() {
+    Debugger.log('# PresentationConnectionManager._removeObserverForPresentationDevicePrompt');
+    let prompt = Cc["@mozilla.org/presentation-device/prompt;1"].getService(Ci.nsIObserver);
+    if (!prompt) {
+      Debugger.log('  >> No available presentationDevicePrompt XPCOM');
+      return;
+    }
+    // presentation-device-prompt XPCOM object will remove
+    // "presentation-select-device" signal listener after receiving it.
+    // Services.obs.removeObserver(prompt, "presentation-select-device", false);
+  }
+
   function _presentationPrompt(deviceId) {
     Debugger.log('# PresentationConnectionManager._presentationPrompt');
     return new Promise(function(resolve, reject) {
@@ -75,6 +87,7 @@ var PresentationConnectionManager = function() {
       let _presObserver = {
         observe: function (subject, topic, data) {
           if (topic == "presentation-prompt-ready") {
+            Services.obs.removeObserver(this, "presentation-prompt-ready", false);
             resolve();
           } else {
             reject('Receive unexpected notification');
@@ -174,6 +187,7 @@ var PresentationConnectionManager = function() {
 
   function uninit() {
     Debugger.log('# PresentationConnectionManager.uninit');
+    _removeObserverForPresentationDevicePrompt();
   }
 
   return {
