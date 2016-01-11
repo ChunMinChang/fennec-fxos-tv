@@ -162,14 +162,14 @@ PresentationManager.prototype = {
   uninit:function(window) {
     Debugger.log('# PresentationManager.uninit');
 
-    if (this.deviceManager) {
-      this.deviceManager.uninit(window);
-      this.deviceManager = null;
-    }
-
     if (this.connectionManager) {
       this.connectionManager.uninit();
       this.connectionManager = null;
+    }
+
+    if (this.deviceManager) {
+      this.deviceManager.uninit(window);
+      this.deviceManager = null;
     }
   },
 };
@@ -488,16 +488,16 @@ function loadIntoWindow(window) {
 function unloadFromWindow(window) {
   Debugger.log('### unloadFromWindow');
 
+  // For Debug: Remove the force-discovery from menu
+  if (gDiscoveryMenuId) {
+    window.NativeWindow.menu.remove(gDiscoveryMenuId);
+  }
+
   // Remove PresentationManager from this window
   uninitPresentationManagerForWindow(window);
 
   // Remove CastingManager from this window
   uninitCastingManagerForWindow(window);
-
-  // For Debug: Remove the force-discovery from menu
-  if (gDiscoveryMenuId) {
-    window.NativeWindow.menu.remove(gDiscoveryMenuId);
-  }
 }
 
 
