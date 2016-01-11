@@ -100,6 +100,7 @@ function GetRecentWindow() {
 // -----------------------------
 // Dependence:
 //   debugger.js
+//   Services.jsm
 XPCOMUtils.defineLazyGetter(this, "PresentationConnectionManager", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationConnectionManager.js", sandbox);
