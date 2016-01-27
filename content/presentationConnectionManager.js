@@ -57,57 +57,11 @@ var PresentationConnectionManager = function() {
     }
   }
 
-  function _removeObserverForPresentationDevicePrompt() {
-    Debugger.log('# PresentationConnectionManager._removeObserverForPresentationDevicePrompt');
-    let prompt = Cc["@mozilla.org/presentation-device/prompt;1"].getService(Ci.nsIObserver);
-    if (!prompt) {
-      Debugger.log('  >> No available presentationDevicePrompt XPCOM');
-      return;
-    }
-    // presentation-device-prompt XPCOM object will remove
-    // "presentation-select-device" signal listener after receiving it.
-    // Services.obs.removeObserver(prompt, "presentation-select-device", false);
-  }
-
-  function _presentationPrompt(deviceId) {
-    Debugger.log('# PresentationConnectionManager._presentationPrompt');
-    return new Promise(function(resolve, reject) {
-      // Get presentation-device-prompt XPCOM object
-      let prompt = Cc["@mozilla.org/presentation-device/prompt;1"].getService(Ci.nsIObserver);
-      if (!prompt) {
-        reject('No available presentationDevicePrompt XPCOM');
-      }
-      // Add listener for "presentation-select-device" signal to
-      // the presentation-device-prompt XPCOM object everytime
-      // before building a session because the
-      // presentation-device-prompt XPCOM object will remove
-      // "presentation-select-device" signal listener after receiving it.
-      Services.obs.addObserver(prompt, "presentation-select-device", false);
-
-      let _presObserver = {
-        observe: function (subject, topic, data) {
-          if (topic == "presentation-prompt-ready") {
-            Services.obs.removeObserver(this, "presentation-prompt-ready", false);
-            resolve();
-          } else {
-            reject('Receive unexpected notification');
-          }
-        }
-      };
-
-      // The presentation-device-prompt XPCOM will fire a
-      // "presentation-prompt-ready" signal upon it receive
-      // the "presentation-select-device" signal
-      Services.obs.addObserver(_presObserver, "presentation-prompt-ready", false);
-      Services.obs.notifyObservers(null, "presentation-select-device", deviceId);
-    });
-  }
-
-  function _startSession(window, url) {
+  function _startSession(window, url, id) {
     Debugger.log('# PresentationConnectionManager._startSession');
     return new Promise(function(resolve, reject) {
       let presentationRequest = new window.PresentationRequest(url);
-      presentationRequest.start().then(function(session){
+      presentationRequest.startWithDevice(id).then(function(session){
         if (session.id && session.state == "connected") {
           _presentation.session = session;
           _presentation.session.onmessage = _presentationOnMessage;
@@ -163,15 +117,7 @@ var PresentationConnectionManager = function() {
 
   function connect(window, url, target) {
     Debugger.log('# PresentationConnectionManager.connect');
-    return new Promise(function(resolve, reject) {
-      _presentationPrompt(target.id).then(function(result) {
-        return _startSession(window, url);
-      }).then(function(result) {
-        resolve(result);
-      }).catch(function(error){
-        reject(error);
-      });
-    });
+    return _startSession(window, url, target.id);
   }
 
   function init(window) {
@@ -187,7 +133,7 @@ var PresentationConnectionManager = function() {
 
   function uninit() {
     Debugger.log('# PresentationConnectionManager.uninit');
-    _removeObserverForPresentationDevicePrompt();
+    // _removeObserverForPresentationDevicePrompt();
   }
 
   return {
