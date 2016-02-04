@@ -509,7 +509,7 @@ var windowListener = {
     Debugger.log('windowListener >> onOpenWindow');
     // Wait for the window to finish loading
     let domWindow = aWindow.QueryInterface(Ci.nsIInterfaceRequestor)
-            .getInterface(Ci.nsIDOMWindowInternal || Ci.nsIDOMWindow);
+                           .getInterface(Ci.nsIDOMWindow);
     function loadListener() {
       Debugger.log('  >> loadListener()');
       domWindow.removeEventListener("load", loadListener, false);
