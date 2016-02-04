@@ -24,7 +24,6 @@ Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/PageActions.jsm");
 Cu.import("resource://gre/modules/Prompt.jsm");
 Cu.import('resource://gre/modules/PresentationDeviceInfoManager.jsm');
-Cu.import("resource://gre/modules/MulticastDNS.jsm");
 
 /*
  * Debugging
