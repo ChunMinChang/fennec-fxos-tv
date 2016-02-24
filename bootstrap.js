@@ -36,8 +36,6 @@ XPCOMUtils.defineLazyGetter(this, "Debugger", function() {
   Services.scriptloader.loadSubScript("chrome://fxostv/content/debugger.js", sandbox);
   return sandbox["Debugger"];
 });
-// Enable the log
-Debugger.enable = true;
 
 // Search devices manually
 // -----------------------------
@@ -560,9 +558,7 @@ function shutdown(aData, aReason) {
 }
 
 function install(aData, aReason) {
-  Debugger.log('install!');
 }
 
 function uninstall(aData, aReason) {
-  Debugger.log('uninstall!');
 }
