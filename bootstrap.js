@@ -23,7 +23,6 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/PageActions.jsm");
 Cu.import("resource://gre/modules/Prompt.jsm");
-// Cu.import('resource://gre/modules/PresentationDeviceInfoManager.jsm');
 
 /*
  * LazyGetter:
@@ -534,7 +533,12 @@ var ControlManager = function() {
     aWindow.addEventListener('pageshow', _handleEvent, true);
 
     // Reload pageAction after tab has been switched
+    aWindow.BrowserApp && aWindow.BrowserApp.deck &&
     aWindow.BrowserApp.deck.addEventListener('TabSelect', _handleEvent, true);
+    // for debug:
+    if (!aWindow.BrowserApp || aWindow.BrowserApp.deck) {
+      _debug('!!!! there is no Window.BrowserApp.deck !!!!\n');
+    }
 
     // TODO: Remove pageAction when wifi is turned-off,
     // and reload it when wifi is turned-on.
