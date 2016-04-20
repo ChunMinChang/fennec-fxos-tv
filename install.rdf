@@ -7,7 +7,7 @@
         <em:name>Firefox OS TV</em:name>
         <em:version>1.0</em:version>
         <em:bootstrap>true</em:bootstrap>
-        <em:description>A Firefox for Android add-on to accompany your Firefox OS TV.</em:description>
+        <em:description>Remotely control your Firefox OS TV.</em:description>
         <em:creator>Chun-Min Chang</em:creator>
 
         <!-- Mobile -->

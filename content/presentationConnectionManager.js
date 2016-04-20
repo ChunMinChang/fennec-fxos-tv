@@ -2,146 +2,170 @@
 
 var PresentationConnectionManager = function() {
 
-  var _presentation = {
-    // hold the presentation's connection
-    session: null,
-    // keep track the message sequence
-    seq: 0,
-    // detect whether or not the session is disconnected by ourselves
-    sessionCloseExpected: false,
-  };
+  // Hold the presentation's connection
+  let _session = null;
+  // Keep track the message's sequence
+  let _seq = 0;
+  // Detect whether or not the session is disconnected by ourselves
+  let _closeIsExpected = false;
+  // Store listeners registering to receive messages
+  let _listeners = [];
 
-  function _reset() {
-    Debugger.log('# PresentationConnectionManager._reset');
-    _presentation.sessionCloseExpected = false;
-    _presentation.session = null;
-    _presentation.seq = 0;
+  function _debug(aMsg) {
+    console.log('# [PresentationConnectionManager] ' + aMsg);
   }
 
-  function _messageHandler(msg) {
-    Debugger.log('# PresentationConnectionManager._messageHandler: ' + msg.type);
-    switch(msg.type) {
-      case 'ack':
-        if (msg.error) {
-          Debugger.log('  >> ack error: ' + msg.error);
-        }
-        _disconnect(true);
-        break;
-      default:
-        break;
+  function _clearAllListeners() {
+    _listeners = [];
+  }
+
+  function _reset() {
+    _debug('_reset');
+    _session = null;
+    _seq = 0;
+    _closeIsExpected = false;
+    _clearAllListeners();
+  }
+
+  function _messageHandler(aMessage, aEvent) {
+    console.log(aMessage);
+    _debug('_messageHandler: ' + aMessage.type);
+    // switch(aMessage.type) {
+    //   case 'ack':
+    //     break;
+    //   default:
+    //     break;
+    // }
+    for (let i in _listeners) {
+      if (_listeners[i][aMessage.type] &&
+          typeof _listeners[i][aMessage.type] === 'function') {
+        _listeners[i][aMessage.type](aMessage, aEvent);
+      }
     }
   }
 
-  function _presentationOnMessage(evt) {
-    Debugger.log('# PresentationConnectionManager._presentationOnMessage');
-    Debugger.log(evt);
-    Debugger.log('  >> Got message:' + evt.data);
-    var rawdata = '[' + evt.data.replace('}{', '},{') + ']';
-    var messages = JSON.parse(rawdata);
+  function _onMessage(aEvent) {
+    _debug('_onMessage >> Got message: ' + aEvent.data);
+    let rawdata = '[' + aEvent.data.replace('}{', '},{') + ']';
+    let messages = JSON.parse(rawdata);
     messages.forEach(message => {
-      _messageHandler(message);
+      _messageHandler(message, aEvent);
     });
   }
 
-  function _presentationOnStatechange(evt) {
-    Debugger.log('# PresentationConnectionManager._presentationOnStatechange');
-    Debugger.log(evt);
-    Debugger.log('  >> state: ' + _presentation.session.state);
+  function _onStatechange(aEvent) {
+    _debug('_onStatechange >> state: ' + _session.state);
 
-    if (_presentation.session && _presentation.session.state !== "connected") {
-      if (!_presentation.sessionCloseExpected) {
-        // The session is closed by server
-        Debugger.log('The session unexpectedly lose connection!' );
-      }
-      _reset();
+    if (!_session) {
+      _debug('there is no session!');
+      return;
     }
+
+    if (_session.state == "connected") {
+      _debug('Build session successfully!');
+      return;
+    }
+
+    // If state is terminated or closed
+    if (!_closeIsExpected) {
+      _debug('Unexpectedly lose session!');
+    }
+    _reset();
   }
 
-  function _startSession(window, url, id) {
-    Debugger.log('# PresentationConnectionManager._startSession');
-    return new Promise(function(resolve, reject) {
-      let presentationRequest = new window.PresentationRequest(url);
-      presentationRequest.startWithDevice(id).then(function(session){
-        if (session.id && session.state == "connected") {
-          _presentation.session = session;
-          _presentation.session.onmessage = _presentationOnMessage;
-          _presentation.session.onstatechange = _presentationOnStatechange;
-          resolve();
-        } else {
-          reject('session.id or session.state is wrong!');
+  function start(aWindow, aUrl, aTarget) {
+    _debug('start');
+    return new Promise(function(aResolve, aReject) {
+      let request = new aWindow.PresentationRequest(aUrl);
+      request.startWithDevice(aTarget.id).then(function(aSession) {
+        if (!aSession.id || aSession.state != "connected") {
+          aReject('The session is wrong!');
         }
-      }).catch(function(error) {
-        reject(error);
+        // Store the session
+        _session = aSession;
+        _session.onmessage = _onMessage;
+        _session.onstatechange = _onStatechange;
+        aResolve();
+      }).catch(function(aError) {
+        aReject(error);
       });
     });
   }
 
-  function sendCommand(command, data) {
-    Debugger.log('# PresentationConnectionManager.sendCommand');
-    var msg = {
-      'type': command,
-      'seq': ++_presentation.seq
+  function sendCommand(aCommand, aData) {
+    _debug('sendCommand');
+
+    if (!_session) {
+      _debug('  >> there is no used session!');
+      return;
+    }
+
+    let msg = {
+      'type': aCommand,
+      'seq': ++_seq,
     };
 
-    for (var i in data) {
-      msg[i] = data[i];
+    for (var i in aData) {
+      msg[i] = aData[i];
     }
-    _presentation.session.send(JSON.stringify(msg));
-  }
-
-  function _disconnect(terminate) {
-    Debugger.log('# PresentationConnectionManager.disconnect: ' + terminate);
-    if (_presentation.session) {
-      _presentation.sessionCloseExpected = true;
-      (terminate)? _presentation.session.terminate() : _presentation.session.close();
-      // _presentation.session will be set to null once
-      // _presentation.session.state is changed to 'terminated' or 'closed'
-      if (!_presentation.session.onmessage) {
-        _presentation.session.onmessage = _presentationOnMessage;
-      }
-    }
+    _session.send(JSON.stringify(msg));
   }
 
   // TODO: close semantics is not ready now(Bug 1210340).
-  // Uncomment the line after close semantic is ready
   function close() {
-    Debugger.log('# PresentationConnectionManager.close');
-    // _disconnect(false);
+    _debug('close');
     return;
   }
 
   function terminate() {
-    Debugger.log('# PresentationConnectionManager.terminate');
-    _disconnect(true);
+    _debug('terminate');
+    if (!_session) {
+      _debug('  >> there is no used session!');
+      return;
+    }
+    // Indicate that we want to end this session
+    _closeIsExpected = true;
+    // Terminate session
+    _session.terminate();
   }
 
-  function connect(window, url, target) {
-    Debugger.log('# PresentationConnectionManager.connect');
-    return _startSession(window, url, target.id);
+  function registerListener(aListener) {
+    _debug('registerListener');
+    _listeners.push(aListener);
   }
 
-  function init(window) {
-    Debugger.log('# PresentationConnectionManager.init');
+  function unregisterListener(aListener) {
+    _debug('unregisterListener');
+    let index = _listeners.indexOf(aListener);
+    if (index > -1) {
+      _debug('delete a listener');
+      _listeners.splice(index, 1);
+    }
+  }
 
+  function init(aWindow) {
+    _debug('init');
     // Check the preferences and permissions for presentation API
-    if (!window.navigator.presentation ||
-        !window.PresentationRequest) {
-      Debugger.log('  >> navigator.presentation or PresentationRequest should be available');
+    if (!aWindow.navigator.presentation ||
+        !aWindow.PresentationRequest) {
+      _debug('  >> navigator.presentation or PresentationRequest should be available');
       return;
     }
   }
 
   function uninit() {
-    Debugger.log('# PresentationConnectionManager.uninit');
-    // _removeObserverForPresentationDevicePrompt();
+    _debug('uninit');
+    _reset();
   }
 
   return {
     init: init,
     uninit: uninit,
-    connect: connect,
+    start: start,
     sendCommand: sendCommand,
     terminate: terminate,
-    close: close
+    // close: close, // TODO: Uncomment the line after close semantic is ready
+    registerListener: registerListener,
+    unregisterListener: unregisterListener,
   };
 };

@@ -1,5 +1,4 @@
 #!/bin/bash
-
 XPI=fennec-fxos-tv.xpi
 INST_PAGE=install.html
 

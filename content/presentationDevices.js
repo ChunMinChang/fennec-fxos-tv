@@ -1,24 +1,36 @@
 "use strict";
 
 var PresentationDevices = (function () {
+
+  function _debug(aMsg) {
+    console.log('# [PresentationDevices] ' + aMsg);
+  }
+
+  const _serviceEnum = {
+    remoteControl: 0,
+    sendPage: 1,
+    pinPage: 2,
+    sendVideo: 3,
+  };
+
   // Containing presentation device's infomation
-  function DeviceInfo(device) {
-    this.id = device.id || 'unidentified';
-    this.name = device.name || 'unidentified';
-    this.type = device.type || 'unidentified';
+  function DeviceInfo(aDevice) {
+    this.id = aDevice.id || 'unidentified';
+    this.name = aDevice.name || 'unidentified';
+    this.type = aDevice.type || 'unidentified';
     // Set initial function for searched presentation devices
-    this.castVideoEnabled = false;
-    this.castPageEnabled = true;
-    this.pinPageEnabled = false;
-    this.remoteControlPortAndPath = false;
+    this.sendVideo = false;
+    this.sendPage = true;
+    this.pinPage = false;
+    this.remoteControlPort = false;
   }
 
   // To save all information of the presentation devices discovered
-  var _list = [];
+  let _list = [];
 
-  function setList(devices) {
-    _list = devices.map(function(dev) {
-      var info = new DeviceInfo(dev);
+  function setList(aDevices) {
+    _list = aDevices.map(function(dev) {
+      let info = new DeviceInfo(dev);
       return info;
     });
   }
@@ -27,68 +39,78 @@ var PresentationDevices = (function () {
     return _list;
   }
 
-  function addDevice(device) {
-    Debugger.log('# [PresentationDevices] addDevice');
-    var found = _list.find(function(dev) {
-      return dev.id == device.id;
+  function addDevice(aDevice) {
+    _debug('addDevice');
+    let found = _list.find(function(dev) {
+      return dev.id == aDevice.id;
     });
 
     if (!found) {
-      _list.push(new DeviceInfo(device));
+      _list.push(new DeviceInfo(aDevice));
     }
-    // For Debug
+    // For debugging
     else {
-      Debugger.log('  >> device alreadt exist!');
+      _debug('  >> device alreadt exist!');
     }
   }
 
-  function updateDevice(device) {
-    Debugger.log('# [PresentationDevices] updateDevice');
-    var index = _list.findIndex(function(dev) {
-      return dev.id == device.id;
+  function updateDevice(aDevice) {
+    _debug('updateDevice');
+    let index = _list.findIndex(function(dev) {
+      return dev.id == aDevice.id;
     });
 
     if (index > -1) {
-      _list[index] = new DeviceInfo(device);
+      _list[index] = new DeviceInfo(aDevice);
     }
-    // For Debug
+    // For debugging
     else {
-       Debugger.log('  >> device doesn\'t exist!');
+       _debug('  >> device doesn\'t exist!');
     }
   }
 
-  function removeDevice(device) {
-    Debugger.log('# [PresentationDevices] removeDevice');
-    var index = _list.findIndex(function(dev) {
-      return dev.id == device.id;
+  function updateServices(aServiceInfo, aType) {
+    _debug('updateServices');
+
+    let index = _list.findIndex(function(dev) {
+      return dev.name == aServiceInfo.serviceName;
+    });
+
+    if (index > -1) {
+      _debug("  >> Updating " + _list[index].name + "'s service.....");
+      switch(aType) {
+        case _serviceEnum.remoteControl:
+          _debug("  set remote control port: " + aServiceInfo.port);
+          _list[index].remoteControlPort = aServiceInfo.port;
+          break;
+        default:
+          _debug("  Can't find any service!");
+          break;
+      }
+    }
+    // For Debug
+    else {
+      _debug('  >> device doesn\'t exist!');
+    }
+
+    // NOTE:
+    // You can also get presentation's attributes by
+    // aServiceInfo.attributes.getPropertyAsAString("ATT_NAME");
+    // e.g., let path = aServiceInfo.attributes.getPropertyAsAString("path");
+  }
+
+  function removeDevice(aDevice) {
+    _debug('removeDevice');
+    let index = _list.findIndex(function(dev) {
+      return dev.id == aDevice.id;
     });
 
     if (index > -1) {
       _list.splice(index, 1);
     }
-    // For Debug
+    // For debugging
     else {
-       Debugger.log('  >> device doesn\'t exist!');
-    }
-  }
-
-  function updateServices(dnsServiceInfo) {
-    Debugger.log('# [PresentationDevices] updateService');
-
-    var index = _list.findIndex(function(dev) {
-      return dev.name == dnsServiceInfo.serviceName;
-    });
-
-    if (index > -1) {
-      Debugger.log("Updating " + _list[index].name + "'s service.....");
-      // TODO: Detecting which services will be updated
-      Debugger.log("  >> port: " + dnsServiceInfo.port);
-      // Debugger.log("  >> path: " + dnsServiceInfo.attributes.getPropertyAsAString("path"));
-      _list[index].remoteControlPortAndPath = ":" + dnsServiceInfo.port + "/";
-    }
-    // For Debug
-    else {
-       Debugger.log('  >> device doesn\'t exist!');
+       _debug('  >> device doesn\'t exist!');
     }
   }
 
@@ -98,7 +120,8 @@ var PresentationDevices = (function () {
     add: addDevice,
     update: updateDevice,
     remove: removeDevice,
-    updateServices: updateServices
+    updateServices: updateServices,
+    service: _serviceEnum,
   };
 
 })();
