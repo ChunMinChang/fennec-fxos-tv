@@ -5,7 +5,7 @@
   - protocol: J-PAKE over TLS
 
 # Install
-1. Check the ```ANDROID_APP_ID``` in [build](build_link)
+1. Check the ```ANDROID_APP_ID``` in [build](build)
 has the same name as your fennec app.
 2. Run command:
 ```
@@ -21,7 +21,7 @@ then:
 
 ## Enabling __xpinstall.signatures.required__ by default
 set ```pref("xpinstall.signatures.required", false);```
-in [<mozilla-central>/mobile/android/app/mobile.js](mobileJS_link)
+in [<mozilla-central>/mobile/android/app/mobile.js][mobileJS_link]
 
 # Remove
 1. Delete the add-on in ```Tools > Add-ons > This add-on's name```
@@ -32,9 +32,8 @@ $ ./rm_files
 
 # Note
 XPCOM calling/registration in add-on will be
-[deprecated at the end of this year](xpcom_deprecated), or early next year,
+[deprecated at the end of this year][xpcom_deprecated], or early next year,
 so this add-on may need to be refactored with new style to meet the new policy.
 
-[build_link]: https://github.com/ChunMinChang/fennec-fxos-tv/blob/master/build  "build"
 [mobileJS_link]: https://dxr.mozilla.org/mozilla-central/source/mobile/android/app/mobile.js#194  "mobile.js"
 [xpcom_deprecated]: https://blog.mozilla.org/addons/2015/08/21/the-future-of-developing-firefox-add-ons/ "xpcom deprecated"
