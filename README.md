@@ -1,19 +1,40 @@
-# fennec-fxos-tv
+# Features
 - Scanning nearby devices by W3C presentation api
 - Sending webpage via presentation api
 - Remotely controlling your Firefox OS TV
   - protocol: J-PAKE over TLS
 
 # Install
+1. Check the ```ANDROID_APP_ID``` in [build](build_link)
+has the same name as your fennec app.
+2. Run command:
 ```
-./build
+$ ./build
 ```
-If there is an error shows that you can't install a unsigned add-on,
-then you can need to
+Then fennec(firefox for android) will show a install-page,
+that has a install-link. Click it to install this add-on.
 
-1. open ```about:config``` on your URL bar
-2. set __xpinstall.signatures.required__ to __false__
+3. If there is an error shows that you can't install a __unsigned__ add-on,
+then:
+  1. open ```about:config``` on your URL bar
+  2. set __xpinstall.signatures.required__ to __false__
 
 ## Enabling __xpinstall.signatures.required__ by default
 set ```pref("xpinstall.signatures.required", false);```
-in __<m-c>/mobile/android/app/mobile.js__
+in [<mozilla-central>/mobile/android/app/mobile.js](mobileJS_link)
+
+# Remove
+1. Delete the add-on in ```Tools > Add-ons > This add-on's name```
+2. Run command:
+```
+$ ./rm_files
+```
+
+# Note
+XPCOM calling/registration in add-on will be
+[deprecated at the end of this year](xpcom_deprecated), or early next year,
+so this add-on may need to be refactored with new style to meet the new policy.
+
+[build_link]: https://github.com/ChunMinChang/fennec-fxos-tv/blob/master/build  "build"
+[mobileJS_link]: https://dxr.mozilla.org/mozilla-central/source/mobile/android/app/mobile.js#194  "mobile.js"
+[xpcom_deprecated]: https://blog.mozilla.org/addons/2015/08/21/the-future-of-developing-firefox-add-ons/ "xpcom deprecated"
