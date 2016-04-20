@@ -28,7 +28,6 @@ var PresentationConnectionManager = function() {
   }
 
   function _messageHandler(aMessage, aEvent) {
-    console.log(aMessage);
     _debug('_messageHandler: ' + aMessage.type);
     // switch(aMessage.type) {
     //   case 'ack':
