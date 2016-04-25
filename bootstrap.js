@@ -18,6 +18,7 @@
  * ==================================
  */
 const { classes: Cc, interfaces: Ci, utils: Cu } = Components;
+// const { classes: Cc, interfaces: Ci, utils: Cu, results: Cr, manager: Cm, Constructor: CC } = Components;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -42,7 +43,6 @@ XPCOMUtils.defineLazyGetter(this, "Helper", function() {
   Services.scriptloader.loadSubScript("chrome://fxostv/content/helper.js", sandbox);
   return sandbox["Helper"];
 });
-
 
 /*
  * Debugging
@@ -76,6 +76,19 @@ function discoveryDevices(win) {
   win.NativeWindow.toast.show('Discovery presentaion devices', "short");
 }
 
+// For window.PresentationRequest(URL).start()
+// -----------------------------
+var gStartRequestMenuId = null;
+function startRequest(win) {
+  let url = 'app://notification-receiver.gaiamobile.org/index.html'
+  let request = new win.PresentationRequest(url);
+  request.start().then(function(result){
+    console.log('successfully!');
+  }).catch(function(error){
+    console.log('damn it!');
+  });
+}
+
 /*
  * Utils
  * ==================================
@@ -86,6 +99,81 @@ function GetRecentWindow() {
 	return window;
 }
 
+function CreateEnum(obj) {
+  for (let key in obj) {
+    obj[key] = key;
+  }
+  return obj;
+}
+
+/*
+ * J-PAKE over TLS
+ * ==================================
+ */
+// Certificate module
+// -----------------------------
+// Dependence:
+XPCOMUtils.defineLazyGetter(this, "Certificate", function() {
+  let sandbox = {};
+  Services.scriptloader.loadSubScript("chrome://fxostv/content/cert.js", sandbox);
+  return sandbox["Cert"];
+});
+
+// Authentication module
+// -----------------------------
+// Dependence:
+//   cert.js (Certificate module)
+XPCOMUtils.defineLazyGetter(this, "Authenticators", function() {
+  let sandbox = {};
+  Services.scriptloader.loadSubScript("chrome://fxostv/content/auth.js", sandbox);
+  return sandbox["Authenticators"];
+});
+
+// // Transport module
+// // -----------------------------
+// // Dependence:
+// XPCOMUtils.defineLazyGetter(this, "Transport", function() {
+//   let sandbox = {};
+//   Services.scriptloader.loadSubScript("chrome://fxostv/content/transport.js", sandbox);
+//   return sandbox["Transport"];
+// });
+
+// Socket module
+// -----------------------------
+// Dependence:
+//   XPCOMUtils.jsm (Use: Services.tm.currentThread)
+//   auth.js (Authentication module)
+//   cert.js (Certificate module)
+XPCOMUtils.defineLazyGetter(this, "Socket", function() {
+  let sandbox = {};
+  Services.scriptloader.loadSubScript("chrome://fxostv/content/socket.js", sandbox);
+  return sandbox["Socket"];
+});
+var gSocketMenuId = null;
+function socketConnect(win) {
+  Certificate.getOrCreate().then(function(aCert) {
+    debug('-- Get Cert --');
+    debug(aCert);
+
+    let socket = new Socket();
+    socket.connect({
+      host: "127.0.0.1",
+      port: 8080,
+      authenticator: new (Authenticators.get().Client)(),
+      cert: aCert,
+    });
+  }).catch(function(aError) {
+    debug(aError);
+  });
+}
+
+// TLS module
+// -----------------------------
+// Dependence:
+//   socket.js
+
+// J-PAKE module
+// -----------------------------
 
 
 /*
@@ -596,8 +684,12 @@ function uninitControlManager(aWindow) {
  */
 function loadIntoWindow(window) {
   console.log('Hello World!');
-  // For Debug: Add a force-discovery into menu
+  // For Debug: Add a button in menu to do force-discovery
   gDiscoveryMenuId = window.NativeWindow.menu.add("Search Devices", null, function() { discoveryDevices(window); });
+  // For Debug: Add a button in menu to do socket-connecting
+  gSocketMenuId = window.NativeWindow.menu.add("Socket Connect", null, function() { socketConnect(window); });
+  // For Debug: Add a button in menu to do window.PresentationRequest(URL).start()
+  gStartRequestMenuId = window.NativeWindow.menu.add("Start Request", null, function() { startRequest(window); });
 
   // Initialize PresentationManager for this window
   initPresentationManager(window);
@@ -608,9 +700,12 @@ function loadIntoWindow(window) {
 
 function unloadFromWindow(window) {
   // For Debug: Remove the force-discovery from menu
-  if (gDiscoveryMenuId) {
-    window.NativeWindow.menu.remove(gDiscoveryMenuId);
-  }
+  gDiscoveryMenuId && window.NativeWindow.menu.remove(gDiscoveryMenuId);
+  // For Debug: Remove the socket-connecting from menu
+  gSocketMenuId && window.NativeWindow.menu.remove(gSocketMenuId);
+  // For Debug: Remove the start-request from menu
+  gStartRequestMenuId && window.NativeWindow.menu.remove(gStartRequestMenuId);
+
 
   // Delete PresentationManager for this window
   uninitPresentationManager(window);
