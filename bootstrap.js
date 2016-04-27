@@ -158,6 +158,7 @@ function socketConnect(win) {
     let socket = new Socket();
     socket.connect({
       host: "127.0.0.1",
+      // host: "192.168.1.104",
       port: 8080,
       authenticator: new (Authenticators.get().Client)(),
       cert: aCert,
