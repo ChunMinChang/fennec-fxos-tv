@@ -298,42 +298,6 @@ var Socket = function() {
     });
   }
 
-  // function _isInputAlive(transport) {
-  //   _debug('_isInputAlive');
-  //
-  //   return new Promise(function(aResolve, aReject) {
-  //     function isAvailable(stream) {
-  //       _unregisterCallback('onInput');
-  //
-  //       try {
-  //         stream.available();
-  //
-  //         if (!_authenticator.validateConnection({
-  //               host: _host,
-  //               port: _port,
-  //               // encryption: true,
-  //               cert: _cert,
-  //               socket: transport
-  //             })) {
-  //           aReject('Connection is invalid');
-  //
-  //           disconnect();
-  //
-  //           return;
-  //         }
-  //
-  //         aResolve();
-  //       } catch(e) {
-  //         aReject(e);
-  //       }
-  //     }
-  //
-  //     _registerCallback('onInput', isAvailable);
-  //
-  //     _input.asyncWait(_handler, 0, 0, Services.tm.currentThread);
-  //   });
-  // }
-
   function connect(aSettings) {
     _debug('connect');
 
@@ -360,14 +324,13 @@ var Socket = function() {
     _storeCertOverride(aSettings);
 
     _startClient(aSettings)
-    // .then(_isInputAlive)
     .then(function(aResult) {
-      console.log('**** connection built ****');
+      _debug('**** connection built ****');
       waitForMessage();
       sendCommand('HELLO');
     })
     .catch(function(error) {
-      _debug('Connection failed');
+      _debug('**** connection failed ****');
       _debug(error);
     });
   }
