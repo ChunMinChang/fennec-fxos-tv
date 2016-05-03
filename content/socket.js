@@ -15,8 +15,8 @@ const certOverrideService = Cc["@mozilla.org/security/certoverride;1"]
 
 const { NetUtil } = Cu.import("resource://gre/modules/NetUtil.jsm", {});
 
-const kWaitForDisconnection = 500;
-const kWaitForServerCert = 500;
+const kWaitForDisconnection = 750;
+const kWaitForServerCert = 750;
 
 var Socket = function(aWindow) {
 
