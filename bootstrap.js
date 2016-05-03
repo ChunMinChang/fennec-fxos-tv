@@ -617,29 +617,37 @@ var ControlManager = function() {
       return;
     }
 
-    // Reload pageAction after page has been loaded
-    aWindow.addEventListener('pageshow', _handleEvent, true);
+    function initializer() {
+      // Reload pageAction after page has been loaded
+      aWindow.addEventListener('pageshow', _handleEvent, true);
 
-    // Reload pageAction after tab has been switched
-    aWindow.BrowserApp && aWindow.BrowserApp.deck &&
-    aWindow.BrowserApp.deck.addEventListener('TabSelect', _handleEvent, true);
-    // for debug:
-    if (!aWindow.BrowserApp || aWindow.BrowserApp.deck) {
-      _debug('!!!! there is no Window.BrowserApp.deck !!!!\n');
+      // Reload pageAction after tab has been switched
+      aWindow.BrowserApp.deck.addEventListener('TabSelect', _handleEvent, true);
+
+      // TODO: Remove pageAction when wifi is turned-off,
+      // and reload it when wifi is turned-on.
+
+      // Init PageAction
+      PageActionManager.init(_getPageActionIcon(aWindow),
+                             _getString('pageaction.title'));
+
+      // // Add pageAction if it need
+      // _updatePageAction(aWindow);
+
+      // Reload pageAction when PresentationDeviceManager receives devicechange
+      _listenDeviceChange(aWindow);
     }
 
-    // TODO: Remove pageAction when wifi is turned-off,
-    // and reload it when wifi is turned-on.
-
-    // Init PageAction
-    PageActionManager.init(_getPageActionIcon(aWindow),
-                           _getString('pageaction.title'));
-
-    // // Add pageAction if it need
-    // _updatePageAction(aWindow);
-
-    // Reload pageAction when PresentationDeviceManager receives devicechange
-    _listenDeviceChange(aWindow);
+    // Call initializer() immediately if UI is ready
+    if (aWindow.BrowserApp) {
+      initializer();
+    // Wait for BrowserApp to initialize.
+    } else {
+      aWindow.addEventListener('UIReady', function onUIReady() {
+        aWindow.removeEventListener('UIReady', onUIReady, false);
+        initializer();
+      }, false);
+    }
   }
 
   function uninit(aWindow) {
