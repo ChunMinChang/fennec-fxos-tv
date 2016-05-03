@@ -362,8 +362,6 @@ var Socket = function(aWindow) {
 
     let { host, port, authenticator, cert } = aSettings;
 
-    // aSettings.port = startServer(cert, true, Ci.nsITLSServerSocket.REQUIRE_ALWAYS);
-
     _setOptions(aSettings);
 
     _startClient()
@@ -404,44 +402,3 @@ var Socket = function(aWindow) {
     disconnect: disconnect,
   };
 };
-
-
-
-// For simulating a TLS server
-function startServer(cert, expectingPeerCert, clientCertificateConfig) {
-  let tlsServer = Cc["@mozilla.org/network/tls-server-socket;1"]
-                  .createInstance(Ci.nsITLSServerSocket);
-  tlsServer.init(-1, true, -1);
-  tlsServer.serverCert = cert;
-
-  let input, output;
-
-  let listener = {
-    onSocketAccepted: function(socket, transport) {
-      console.log("Accept TLS client connection");
-      let connectionInfo = transport.securityInfo
-                           .QueryInterface(Ci.nsITLSServerConnectionInfo);
-      connectionInfo.setSecurityObserver(listener);
-      input = transport.openInputStream(0, 0, 0);
-      output = transport.openOutputStream(0, 0, 0);
-    },
-    onHandshakeDone: function(socket, status) {
-      console.log("TLS handshake done");
-
-      input.asyncWait({
-        onInputStreamReady: function(input) {
-          NetUtil.asyncCopy(input, output);
-        }
-      }, 0, 0, Services.tm.currentThread);
-    },
-    onStopListening: function() {}
-  };
-
-  tlsServer.setSessionCache(false);
-  tlsServer.setSessionTickets(false);
-  tlsServer.setRequestClientCertificate(clientCertificateConfig);
-
-  tlsServer.asyncListen(listener);
-
-  return tlsServer.port;
-}
