@@ -15,7 +15,12 @@ const certOverrideService = Cc["@mozilla.org/security/certoverride;1"]
 
 const { NetUtil } = Cu.import("resource://gre/modules/NetUtil.jsm", {});
 
-var Socket = function() {
+const kWaitForDisconnection = 500;
+const kWaitForServerCert = 500;
+
+var Socket = function(aWindow) {
+
+  let _window = aWindow;
 
   let _host,
       _port,
@@ -38,145 +43,68 @@ var Socket = function() {
     _cert = cert;
   }
 
-  function _storeCertOverride(aSettings) {
-    _debug('_storeCertOverride');
-    let { host, port, cert } = aSettings;
+  function _storeCertOverride(aCert, aHost, aPort) {
+    _debug('_storeCertOverride: ' + aHost + ',' + aPort);
     let overrideBits = Ci.nsICertOverrideService.ERROR_UNTRUSTED |
                        Ci.nsICertOverrideService.ERROR_MISMATCH;
-    certOverrideService.rememberValidityOverride(host, port, cert,
+    certOverrideService.rememberValidityOverride(aHost, aPort, aCert,
                                                  overrideBits, true);
   }
 
-  // function _startClient(aSettings) {
-  //   _debug('_startClient');
-  //   let { host, port, authenticator, cert } = aSettings;
-  //
-  //   let transport = socketTransportService.createTransport(["ssl"], 1, host, port, null);
-  //
-  //   // By default the CONNECT socket timeout is very long, 65535 seconds,
-  //   // so that if we race to be in CONNECT state while the server socket is still
-  //   // initializing, the connection is stuck in connecting state for 18.20 hours!
-  //   transport.setTimeout(Ci.nsISocketTransport.TIMEOUT_CONNECT, 2);
-  //
-  //   let handler = {
-  //     // onTransportStatus: function(transport, status) {
-  //     //   _debug('_startClient >> onTransportStatus');
-  //     //   if (status === Ci.nsISocketTransport.STATUS_CONNECTED_TO) {
-  //     //     _output.asyncWait(handler, 0, 0, Services.tm.currentThread);
-  //     //   }
-  //     // },
-  //
-  //     onTransportStatus: function(transport, status) {
-  //       _debug('_startClient >> onTransportStatus');
-  //       if (status != Ci.nsISocketTransport.STATUS_CONNECTING_TO) {
-  //         return;
-  //       }
-  //
-  //       // Set the client certificate as appropriate.
-  //       // if (cert) {
-  //       //   let clientSecInfo = transport.securityInfo;
-  //       //   let tlsControl = clientSecInfo.QueryInterface(Ci.nsISSLSocketControl);
-  //       //   tlsControl.clientCert = cert;
-  //       // }
-  //
-  //       // _input = transport.openInputStream(0, 0, 0);
-  //       // _input.asyncWait(handler, 0, 0, Services.tm.currentThread);
-  //       _output.asyncWait(handler, 0, 0, Services.tm.currentThread);
-  //     },
-  //
-  //     onInputStreamReady: function(inputStream) {
-  //       _debug('_startClient >> onInputStreamReady');
-  //       try {
-  //         let data = NetUtil.readInputStreamToString(inputStream, inputStream.available());
-  //
-  //         if (!authenticator.validateConnection({
-  //           host: host,
-  //           port: port,
-  //           encryption: true,
-  //           cert: cert,
-  //           socket: transport})) {
-  //           _debug('Invalid connection!');
-  //           throw new Error("Invalid connection");
-  //           return;
-  //         }
-  //
-  //         _debug('Receive: ' + data);
-  //         inputStream.close();
-  //         _output.close();
-  //       } catch (e) {
-  //         _debug(e);
-  //         let errorClass = nssErrorsService.getErrorClass(e.result);
-  //         if (errorClass === Ci.nsINSSErrorsService.ERROR_CLASS_BAD_CERT) {
-  //           _debug('Bad Certificate');
-  //         }
-  //       }
-  //     },
-  //
-  //     onOutputStreamReady: function(outputStream) {
-  //       _debug('_startClient >> onOutputStreamReady');
-  //       try {
-  //         // Set the client certificate as appropriate.
-  //         if (cert) {
-  //           let clientSecInfo = transport.securityInfo;
-  //           let tlsControl = clientSecInfo.QueryInterface(Ci.nsISSLSocketControl);
-  //           tlsControl.clientCert = cert;
-  //         }
-  //
-  //         outputStream.write("HELLO", 5);
-  //         _debug("Output to server written");
-  //         _input = transport.openInputStream(0, 0, 0);
-  //         _input.asyncWait(handler, 0, 0, Services.tm.currentThread);
-  //       } catch (e) {
-  //         _debug(e);
-  //         let errorClass = nssErrorsService.getErrorClass(e.result);
-  //         _debug(errorClass);
-  //       }
-  //     },
-  //   };
-  //
-  //   transport.setEventSink(handler, Services.tm.currentThread);
-  //   _output = transport.openOutputStream(0, 0, 0);
-  // }
-
   let _handler = {
-    onTransportStatus: function(transport, status) {
+    onTransportStatus: function(aTransport, aStatus) {
       _debug('_handler >> onTransportStatus');
-      switch(status) {
-        // case Ci.nsISocketTransport.TIMEOUT_CONNECT: {}
-        // case Ci.nsISocketTransport.TIMEOUT_READ_WRITE: {}
-        // case Ci.nsISocketTransport.STATUS_RESOLVING: {}
-        // case Ci.nsISocketTransport.STATUS_RESOLVED: {}
+      switch(aStatus) {
+        case Ci.nsISocketTransport.TIMEOUT_CONNECT: {
+          _debug('  TIMEOUT_CONNECT');
+        }
+        case Ci.nsISocketTransport.TIMEOUT_READ_WRITE: {
+          _debug('  TIMEOUT_READ_WRITE');
+        }
+        case Ci.nsISocketTransport.STATUS_RESOLVING: {
+          _debug('  STATUS_RESOLVING');
+        }
+        case Ci.nsISocketTransport.STATUS_RESOLVED: {
+          _debug('  STATUS_RESOLVED');
+        }
         case Ci.nsISocketTransport.STATUS_CONNECTING_TO: {
           _debug('  STATUS_CONNECTING_TO');
-          break;
         }
-        // case Ci.nsISocketTransport.STATUS_CONNECTED_TO: {}
-        // case Ci.nsISocketTransport.STATUS_SENDING_TO: {}
-        // case Ci.nsISocketTransport.STATUS_WAITING_FOR: {}
-        // case Ci.nsISocketTransport.STATUS_RECEIVING_FROM: {}
+        case Ci.nsISocketTransport.STATUS_CONNECTED_TO: {
+          _debug('  STATUS_CONNECTED_TO');
+        }
+        case Ci.nsISocketTransport.STATUS_SENDING_TO: {
+          _debug('  STATUS_SENDING_TO');
+        }
+        case Ci.nsISocketTransport.STATUS_WAITING_FOR: {
+          _debug('  STATUS_WAITING_FOR');
+        }
+        case Ci.nsISocketTransport.STATUS_RECEIVING_FROM: {
+          _debug('  STATUS_RECEIVING_FROM');
+        }
         default:
           break;
       }
 
-      _handlerCallback[status] &&
-      typeof _handlerCallback[status] === 'function' &&
-      _handlerCallback[status]();
+      _handlerCallback[aStatus] &&
+      typeof _handlerCallback[aStatus] === 'function' &&
+      _handlerCallback[aStatus](aTransport);
     },
 
-    onInputStreamReady: function(inputStream) {
+    onInputStreamReady: function(aInputStream) {
       _debug('_handler >> onInputStreamReady');
 
       _handlerCallback.onInput &&
       typeof _handlerCallback.onInput === 'function' &&
-      _handlerCallback.onInput(inputStream);
+      _handlerCallback.onInput(aInputStream);
     },
 
-    onOutputStreamReady: function(outputStream) {
+    onOutputStreamReady: function(aOutputStream) {
       _debug('_handler >> onOutputStreamReady');
 
       _handlerCallback.onOutput &&
       typeof _handlerCallback.onOutput === 'function' &&
-      _handlerCallback.onOutput(outputStream);
+      _handlerCallback.onOutput(aOutputStream);
     },
   };
 
@@ -189,30 +117,30 @@ var Socket = function() {
   let _handlerCallback = {};
 
   // This method is used to set the callback for TLS transport
-  function _registerCallback(key, callback) {
+  function _registerCallback(aKey, aCallback) {
     _debug('_registerCallback');
-    if (_handlerCallback[key]) {
-      _debug('  already has a callback for ' + key);
+    if (_handlerCallback[aKey]) {
+      _debug('  already has a callback for ' + aKey);
       return;
     }
 
-    if (typeof callback !== 'function') {
+    if (typeof aCallback !== 'function') {
       _debug('  passed callback is not a function');
       return;
     }
 
-    _handlerCallback[key] = callback;
+    _handlerCallback[aKey] = aCallback;
   }
 
   // This method is used to delete the callback for TLS transport
-  function _unregisterCallback(key) {
+  function _unregisterCallback(aKey) {
     _debug('_unregisterCallback');
-    if (!_handlerCallback[key]) {
-      _debug('  there is no callback for ' + key);
+    if (!_handlerCallback[aKey]) {
+      _debug('  there is no callback for ' + aKey);
       return;
     }
 
-    delete _handlerCallback[key];
+    delete _handlerCallback[aKey];
   }
 
   // This method will set the client certificate for TLS and
@@ -252,18 +180,136 @@ var Socket = function() {
       } catch(e) {
         aReject(e);
       }
-
     });
   }
 
-  function sendCommand(msg) {
+  function _overwriteServerCertificate(aTransport) {
+    _debug('_overwriteServerCertificate');
+    return new Promise(function(aResolve, aReject) {
+      _output.asyncWait({
+        onOutputStreamReady: function(stream) {
+          let msg = 'TEST';
+          try {
+            stream.write(msg, msg.length);
+
+            let ssl = aTransport.securityInfo.QueryInterface(Ci.nsISSLStatusProvider).SSLStatus;
+            // console.log(ssl);
+
+            if (ssl && ssl.serverCert) {
+              _debug('Overwrite server certificate!');
+              overwrite();
+            } else {
+              _debug('Wait for loading server certificate!');
+              _window.setTimeout(overwrite, kWaitForServerCert);
+            }
+
+            function overwrite() {
+              _debug('_overwriteServerCertificate >> overwrite');
+              let serverCert = aTransport.securityInfo.QueryInterface(Ci.nsISSLStatusProvider).SSLStatus.serverCert;
+              // console.log(serverCert);
+
+              // Overwrite server's certificate if the certificate is wrong.
+              // This will always happens in first connection.
+              _storeCertOverride(serverCert, _host, _port);
+
+              // Close the invalid connection
+              disconnect();
+
+              // Connect to the server again
+              _startClient().then(function(aResult) {
+                aResolve(aResult); // The aResult here is the transport!
+              }).catch(function(aError) {
+                aReject(aError);
+              });
+            }
+
+          } catch(e) {
+            aReject(e);
+          }
+        }
+      }, 0, 0, Services.tm.currentThread);
+    });
+  }
+
+  // function _isConnectionAlive(aTransport) {
+  //   _debug('_isConnectionAlive');
+  //   return new Promise(function(aResolve, aReject) {
+  //     function isStreamAvailable(stream) {
+  //       _unregisterCallback('onInput');
+  //       try {
+  //         stream.available();
+  //         aResolve({ transport: aTransport, alive: true });
+  //       } catch(e) {
+  //         try {
+  //           // getErrorClass may throw if you pass a non-NSS error
+  //           // console.log(e);
+  //           let errorClass = nssErrorsService.getErrorClass(e.result);
+  //           if (errorClass === Ci.nsINSSErrorsService.ERROR_CLASS_BAD_CERT) {
+  //             aResolve({ transport: aTransport, certError: true });
+  //           } else {
+  //             aReject(e);
+  //           }
+  //         } catch(nssErr) {
+  //           aReject(nssErr);
+  //         }
+  //       }
+  //     }
+  //
+  //     _registerCallback('onInput', isStreamAvailable);
+  //
+  //     _input.asyncWait(_handler, 0, 0, Services.tm.currentThread);
+  //   });
+  // }
+
+  // // The first input.asyncWait or ourput.asyncWait will fail
+  // // because server's certificate is self-signed and it's not for local address.
+  // // We must overwrite the server's certificate from the first connection.
+  // // After the certificate is overwritten, the following connection won't
+  // // have the error certificate issue.
+  // function _maybeOverwriteServerCertificate({ transport, alive, certError }) {
+  //   _debug('_maybeOverwriteServerCertificate');
+  //
+  //   return new Promise(function(aResolve, aReject) {
+  //
+  //     // Do nothing if the connection is valid
+  //     if (alive) {
+  //       _debug('  connection is valid!');
+  //       aResolve(transport);
+  //       return;
+  //     }
+  //
+  //     // Overwrite server's certificate if the certificate is wrong.
+  //     // This will always happens in first connection.
+  //     if (certError) {
+  //       _debug('  server\'s certificate is wrong! overwrite it!');
+  //       let serverCert = transport.securityInfo.QueryInterface(Ci.nsISSLStatusProvider)
+  //                                 .SSLStatus.serverCert;
+  //       _storeCertOverride(serverCert, _host, _port);
+  //
+  //       // Close the invalid connection
+  //       disconnect();
+  //
+  //       // Connect to the server again
+  //       _startClient().then(function(aResult) {
+  //         aResolve(aResult); // The aResult here is the transport!
+  //       }).catch(function(aError) {
+  //         aReject(aError);
+  //       });
+  //     }
+  //
+  //     // Unknown situation here...
+  //     _debug('  Undefined situation!');
+  //   });
+  // }
+
+  function sendCommand(aMsg) {
     _debug('sendCommand');
 
     return new Promise(function(aResolve, aReject) {
       function writeData(stream) {
         _unregisterCallback('onOutput');
         try {
-          stream.write(msg, msg.length);
+          stream.write(aMsg, aMsg.length);
           aResolve();
         } catch(e) {
           aReject(e);
@@ -317,21 +363,30 @@ var Socket = function() {
     // let { host, port, encryption, authenticator, cert } = aSettings;
     let { host, port, authenticator, cert } = aSettings;
 
-    aSettings.port = startServer(cert, true, Ci.nsITLSServerSocket.REQUIRE_ALWAYS);
+    // aSettings.port = startServer(cert, true, Ci.nsITLSServerSocket.REQUIRE_ALWAYS);
 
     _setOptions(aSettings);
 
-    _storeCertOverride(aSettings);
-
-    _startClient(aSettings)
-    .then(function(aResult) {
+    _startClient()
+    // .then(_isConnectionAlive)
+    // .then(_maybeOverwriteServerCertificate)
+    .then(_overwriteServerCertificate)
+    .then(function(aTransport) { // The aResult here is the transport
       _debug('**** connection built ****');
-      waitForMessage();
-      sendCommand('HELLO');
+
+      // waitForMessage();
+
+      sendCommand('{"type":"command","action":"keypress","detail":"DOM_VK_RETURN"}');
+    })
+    // .then(disconnect)
+    .then(function(aResult) {
+      _debug('**** after connection ****');
+      _window.setTimeout(disconnect, kWaitForDisconnection);
     })
     .catch(function(error) {
       _debug('**** connection failed ****');
       _debug(error);
+      disconnect();
     });
   }
 
