@@ -6,7 +6,7 @@
 const localCertService = Cc["@mozilla.org/security/local-cert-service;1"]
                            .getService(Ci.nsILocalCertService);
 
-const localCertName = 'devtools';
+const localCertName = 'RemoteControlService';
 
 var Cert = {
   /**
