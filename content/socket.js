@@ -360,7 +360,6 @@ var Socket = function(aWindow) {
       aSettings.authenticator = new (Authenticators.get().Client)();
     }
 
-    // let { host, port, encryption, authenticator, cert } = aSettings;
     let { host, port, authenticator, cert } = aSettings;
 
     // aSettings.port = startServer(cert, true, Ci.nsITLSServerSocket.REQUIRE_ALWAYS);
@@ -378,7 +377,6 @@ var Socket = function(aWindow) {
 
       sendCommand('{"type":"command","action":"keypress","detail":"DOM_VK_RETURN"}');
     })
-    // .then(disconnect)
     .then(function(aResult) {
       _debug('**** after connection ****');
       _window.setTimeout(disconnect, kWaitForDisconnection);
