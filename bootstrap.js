@@ -609,6 +609,29 @@ var ControlManager = function() {
 
   // Initializer
   // -------------------------------
+  function _initializer(aWindow) {
+    _debug('_initializer');
+
+    // Reload pageAction after page has been loaded
+    aWindow.addEventListener('pageshow', _handleEvent, true);
+
+    // Reload pageAction after tab has been switched
+    aWindow.BrowserApp.deck.addEventListener('TabSelect', _handleEvent, true);
+
+    // TODO: Remove pageAction when wifi is turned-off,
+    // and reload it when wifi is turned-on.
+
+    // Init PageAction
+    PageActionManager.init(_getPageActionIcon(aWindow),
+                           _getString('pageaction.title'));
+
+    // // Add pageAction if it need
+    // _updatePageAction(aWindow);
+
+    // Reload pageAction when PresentationDeviceManager receives devicechange
+    _listenDeviceChange(aWindow);
+  }
+
   function init(aWindow) {
     _debug('init');
 
@@ -617,35 +640,17 @@ var ControlManager = function() {
       return;
     }
 
-    function initializer() {
-      // Reload pageAction after page has been loaded
-      aWindow.addEventListener('pageshow', _handleEvent, true);
-
-      // Reload pageAction after tab has been switched
-      aWindow.BrowserApp.deck.addEventListener('TabSelect', _handleEvent, true);
-
-      // TODO: Remove pageAction when wifi is turned-off,
-      // and reload it when wifi is turned-on.
-
-      // Init PageAction
-      PageActionManager.init(_getPageActionIcon(aWindow),
-                             _getString('pageaction.title'));
-
-      // // Add pageAction if it need
-      // _updatePageAction(aWindow);
-
-      // Reload pageAction when PresentationDeviceManager receives devicechange
-      _listenDeviceChange(aWindow);
-    }
-
     // Call initializer() immediately if UI is ready
-    if (aWindow.BrowserApp) {
-      initializer();
+    if (aWindow.BrowserApp && aWindow.BrowserApp.deck) {
+      _debug('Call initializer() immediately');
+      _initializer(aWindow);
     // Wait for BrowserApp to initialize.
     } else {
+      _debug('Wait for BrowserApp to initialize');
       aWindow.addEventListener('UIReady', function onUIReady() {
         aWindow.removeEventListener('UIReady', onUIReady, false);
-        initializer();
+        let win = GetRecentWindow();
+        _initializer(win);
       }, false);
     }
   }
