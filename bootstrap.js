@@ -155,10 +155,9 @@ function socketConnect(win) {
     debug('-- Get Cert --');
     debug(aCert);
 
-    let socket = new Socket();
+    let socket = new Socket(win);
     socket.connect({
-      host: "127.0.0.1",
-      // host: "192.168.1.104",
+      host: "192.168.1.104",
       port: 8080,
       authenticator: new (Authenticators.get().Client)(),
       cert: aCert,
