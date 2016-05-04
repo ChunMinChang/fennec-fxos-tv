@@ -166,6 +166,13 @@ function socketConnect(win) {
 // J-PAKE module
 // -----------------------------
 
+// User Interface
+// -----------------------------
+var gRemoteControlUIMenuId;
+const kRemoteControlUIURL = 'chrome://fxostv/content/remote-control-client/client.html';
+function openRemoteControlUI(win) {
+  let tab = win.BrowserApp.addTab(kRemoteControlUIURL);
+}
 
 /*
  * Presentation API
@@ -694,6 +701,8 @@ function loadIntoWindow(window) {
   gSocketMenuId = window.NativeWindow.menu.add("Socket Connect", null, function() { socketConnect(window); });
   // For Debug: Add a button in menu to do window.PresentationRequest(URL).start()
   gStartRequestMenuId = window.NativeWindow.menu.add("Start Request", null, function() { startRequest(window); });
+  // For Debug: Add a button in menu to do open Remote Control UI
+  gRemoteControlUIMenuId = window.NativeWindow.menu.add("Open UI", null, function() { openRemoteControlUI(window); });
 
   // Initialize PresentationManager for this window
   initPresentationManager(window);
@@ -709,7 +718,8 @@ function unloadFromWindow(window) {
   gSocketMenuId && window.NativeWindow.menu.remove(gSocketMenuId);
   // For Debug: Remove the start-request from menu
   gStartRequestMenuId && window.NativeWindow.menu.remove(gStartRequestMenuId);
-
+  // For Debug: Remove the remoteControl UI button from menu
+  gRemoteControlUIMenuId && window.NativeWindow.menu.remove(gRemoteControlUIMenuId);
 
   // Delete PresentationManager for this window
   uninitPresentationManager(window);
