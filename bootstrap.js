@@ -134,16 +134,7 @@ XPCOMUtils.defineLazyGetter(this, "Authenticators", function() {
   return sandbox["Authenticators"];
 });
 
-// // Transport module
-// // -----------------------------
-// // Dependence:
-// XPCOMUtils.defineLazyGetter(this, "Transport", function() {
-//   let sandbox = {};
-//   Services.scriptloader.loadSubScript("chrome://fxostv/content/transport.js", sandbox);
-//   return sandbox["Transport"];
-// });
-
-// Socket module
+// TLS Socket module
 // -----------------------------
 // Dependence:
 //   XPCOMUtils.jsm (Use: Services.tm.currentThread)
@@ -171,11 +162,6 @@ function socketConnect(win) {
     debug(aError);
   });
 }
-
-// TLS module
-// -----------------------------
-// Dependence:
-//   socket.js
 
 // J-PAKE module
 // -----------------------------
