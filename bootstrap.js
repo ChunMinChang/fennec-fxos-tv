@@ -570,23 +570,23 @@ var ControlManager = function() {
       return;
     }
 
-    // // callback for _listener.add/update/remove
-    // let updatePageAction = function(evt) {
-    //   // evt.target = PresentationDeviceInfoManager;
-    //   // evt.target.ownerGlobal = ChromeWindow;
-    //   _updatePageAction(evt.target.ownerGlobal);
-    // };
-    // _listener = {
-    //   add: updatePageAction,
-    //   update: updatePageAction,
-    //   remove: updatePageAction,
-    // };
-
-    _listener = {
-      add: function() { let win = GetRecentWindow() ; _updatePageAction(win); },
-      update: function() { let win = GetRecentWindow() ; _updatePageAction(win); },
-      remove: function() { let win = GetRecentWindow() ; _updatePageAction(win); },
+    // callback for _listener.add/update/remove
+    let updatePageAction = function(evt) {
+      // evt.target is PresentationDeviceInfoManager
+      // and evt.target.ownerGlobal is ChromeWindow;
+      _updatePageAction(evt.target.ownerGlobal);
     };
+    _listener = {
+      add: updatePageAction,
+      update: updatePageAction,
+      remove: updatePageAction,
+    };
+
+    // _listener = {
+    //   add: function() { let win = GetRecentWindow() ; _updatePageAction(win); },
+    //   update: function() { let win = GetRecentWindow() ; _updatePageAction(win); },
+    //   remove: function() { let win = GetRecentWindow() ; _updatePageAction(win); },
+    // };
 
     aWindow.presentationManager.deviceManager.registerListener(_listener);
   }
