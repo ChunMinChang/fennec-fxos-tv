@@ -24,6 +24,7 @@ Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/PageActions.jsm");
 Cu.import("resource://gre/modules/Prompt.jsm");
+Cu.import("resource://gre/modules/Snackbars.jsm");
 
 /*
  * LazyGetter:
@@ -73,7 +74,7 @@ function discoveryDevices(win) {
     debug(error);
   });
 
-  win.NativeWindow.toast.show('Discovery presentaion devices', "short");
+  ShowMessage('Discovery presentaion devices', true);
 }
 
 // For window.PresentationRequest(URL).start()
@@ -104,6 +105,10 @@ function CreateEnum(obj) {
     obj[key] = key;
   }
   return obj;
+}
+
+function ShowMessage(aMsg, aLong) {
+  Snackbars.show(aMsg, ((aLong)? Snackbars.LENGTH_LONG : Snackbars.LENGTH_LONG));
 }
 
 /*
@@ -491,7 +496,7 @@ var ControlManager = function() {
     aWindow.presentationManager.connectionManager.start(aWindow, appURL, aTarget)
     .then(function(aResult) {
       // Show message: request sent
-      aWindow.NativeWindow.toast.show(_getString('service.request.send'), 'short');
+      ShowMessage(_getString('service.request.send'), true);
       // Request TV to show the page
       aWindow.presentationManager.connectionManager
       .sendCommand('view', {
@@ -500,7 +505,7 @@ var ControlManager = function() {
       });
     }).catch(function(aError) {
       // Show message: request fail
-      aWindow.NativeWindow.toast.show(_getString('service.request.fail'), 'short');
+      ShowMessage(_getString('service.request.fail'), true);
     });
   }
 
