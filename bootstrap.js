@@ -8,7 +8,7 @@
  *           │                     └ PresentationDeviceManager
  *   Window ─┤
  *           │
- *           └ ControlManager
+ *           └ UIActionManager
  *
  *
  */
@@ -311,7 +311,7 @@ function uninitPresentationManager(aWindow) {
 
 
 /*
- * ControlManager
+ * UIActionManager
  * ==================================
  */
 // PageActionManager module
@@ -324,19 +324,19 @@ XPCOMUtils.defineLazyGetter(this, "PageActionManager", function() {
   return sandbox["PageActionManager"];
 });
 
-// ControlManager module
+// UIActionManager module
 // -----------------------------
 // Dependence:
 //   PageActionManager.js
 //   PresentationManager
 //     - PresentationDeviceManager.js
 //     - PresentationConnectionManager.js
-var ControlManager = function() {
+var UIActionManager = function() {
 
   // Utils
   // -------------------------------
   function _debug(aMsg) {
-    console.log('# [ControlManager] ' + aMsg);
+    console.log('# [UIActionManager] ' + aMsg);
   }
 
   function _isCastable() {
@@ -727,17 +727,17 @@ var ControlManager = function() {
   };
 };
 
-function initControlManager(aWindow) {
-  if (!aWindow.hasOwnProperty('controlManager')) {
-    aWindow.controlManager = new ControlManager();
-    aWindow.controlManager.init(aWindow);
+function initUIActionManager(aWindow) {
+  if (!aWindow.hasOwnProperty('UIActionManager')) {
+    aWindow.UIActionManager = new UIActionManager();
+    aWindow.UIActionManager.init(aWindow);
   }
 }
 
-function uninitControlManager(aWindow) {
-  if (aWindow.hasOwnProperty('controlManager')) {
-    aWindow.controlManager.uninit(aWindow);
-    delete aWindow.controlManager;
+function uninitUIActionManager(aWindow) {
+  if (aWindow.hasOwnProperty('UIActionManager')) {
+    aWindow.UIActionManager.uninit(aWindow);
+    delete aWindow.UIActionManager;
   }
 }
 
@@ -759,8 +759,8 @@ function loadIntoWindow(window) {
   // Initialize PresentationManager for this window
   initPresentationManager(window);
 
-  // Initialize ControlManager for this window
-  initControlManager(window);
+  // Initialize UIActionManager for this window
+  initUIActionManager(window);
 }
 
 function unloadFromWindow(window) {
@@ -774,8 +774,8 @@ function unloadFromWindow(window) {
   // Delete PresentationManager for this window
   uninitPresentationManager(window);
 
-  // Delete ControlManager for this window
-  uninitControlManager(window);
+  // Delete UIActionManager for this window
+  uninitUIActionManager(window);
 }
 
 /**
