@@ -172,6 +172,17 @@ var gRemoteControlUIMenuId;
 const kRemoteControlUIURL = 'chrome://fxostv/content/remote-control-client/client.html';
 function openRemoteControlUI(win) {
   let tab = win.BrowserApp.addTab(kRemoteControlUIURL);
+  let _remoteControlObserver = {
+    observe: function (aSubject, aTopic, aData) {
+      console.log('_remoteControlObserver >> obsere: ' + aTopic);
+      if (aTopic != 'remote-control-message') {
+        return;
+      }
+      let remoteControlMsg = JSON.parse(aData);
+      console.log(remoteControlMsg);
+    }
+  };
+  Services.obs.addObserver(_remoteControlObserver, 'remote-control-message', false);
 }
 
 /*
