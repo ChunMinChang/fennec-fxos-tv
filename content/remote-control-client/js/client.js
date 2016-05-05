@@ -18,27 +18,6 @@
       return;
     }
 
-    // var data = {
-    //   type: 'command',
-    //   action: action,
-    //   detail: (typeof detail === 'object') ? detail : detail.toString()
-    // };
-    //
-    // console.log(action);
-    // console.log(detail);
-    //
-    // exports.sendMessage(AJAX_URL, {
-    //   message: JSON.stringify(data)
-    // }, function onsuccess(data) {
-    //   if (!data || !data.verified) {
-    //     enabled = false;
-    //     document.l10n.formatValue('session-expired').then(function(value) {
-    //       alert(value);
-    //       window.location.reload();
-    //     });
-    //   }
-    // });
-
     exports.sendMessage('command', action, (typeof detail === 'object') ? detail : detail.toString());
   }
 

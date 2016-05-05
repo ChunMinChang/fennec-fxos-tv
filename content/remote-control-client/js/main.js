@@ -35,56 +35,6 @@ Cu.import("resource://gre/modules/Services.jsm");
     document.addEventListener('load', wrapper);
   };
 
-  // exports.sendMessage = function(url, data, success, error) {
-  //   if (typeof data !== 'object') {
-  //     data = {};
-  //   }
-  //
-  //   var param = [];
-  //   for (var name in data) {
-  //     param.push(encodeURIComponent(name) + '=' +
-  //       encodeURIComponent(data[name]));
-  //   }
-  //
-  //   var paramString = param.length ? '?' + param.join('&') : '';
-  //   var finalURL = encodeURI(url) + paramString;
-  //
-  //   if (DEBUG) {
-  //     console.log('Ajax URL: ' + finalURL);
-  //   }
-  //
-  //   try {
-  //     var xhr = new XMLHttpRequest();
-  //     xhr.open('GET', finalURL, true);
-  //     xhr.onload = function() {
-  //       if (xhr.status === 200) {
-  //         var data = xhr.responseText;
-  //         if (DEBUG) {
-  //           console.log('Ajax response: ' + data);
-  //         }
-  //         if (success) {
-  //           success(data ? JSON.parse(data) : undefined);
-  //         }
-  //       } else {
-  //         if (DEBUG) {
-  //           console.error('Ajax error: ' + xhr.status);
-  //         }
-  //         if (error) {
-  //           error(xhr.status);
-  //         }
-  //       }
-  //     };
-  //     xhr.send();
-  //   } catch(err) {
-  //     if (DEBUG) {
-  //       console.error('Ajax error: ' + err.name);
-  //     }
-  //     if (error) {
-  //       error(err.name);
-  //     }
-  //   }
-  // };
-
   exports.sendMessage = function(type, action, detail) {
     let data = {
       type: type,
