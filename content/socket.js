@@ -18,9 +18,7 @@ const { NetUtil } = Cu.import("resource://gre/modules/NetUtil.jsm", {});
 const kWaitForDisconnection = 750;
 const kWaitForServerCert = 750;
 
-var Socket = function(aWindow) {
-
-  let _window = aWindow;
+var Socket = function() {
 
   let _host,
       _port,
@@ -200,7 +198,10 @@ var Socket = function(aWindow) {
               overwrite();
             } else {
               _debug('Wait for loading server certificate!');
-              _window.setTimeout(overwrite, kWaitForServerCert);
+
+              // Wait for the ssl.serverCert
+              let window = GetRecentWindow();
+              window.setTimeout(overwrite, kWaitForServerCert);
             }
 
             function overwrite() {
