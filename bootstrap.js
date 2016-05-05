@@ -145,44 +145,87 @@ XPCOMUtils.defineLazyGetter(this, "Socket", function() {
   Services.scriptloader.loadSubScript("chrome://fxostv/content/socket.js", sandbox);
   return sandbox["Socket"];
 });
-var gSocketMenuId = null;
-function socketConnect(win) {
-  Certificate.getOrCreate().then(function(aCert) {
-    debug('-- Get Cert --');
-    debug(aCert);
-
-    let socket = new Socket(win);
-    socket.connect({
-      host: "192.168.1.104",
-      port: 8080,
-      authenticator: new (Authenticators.get().Client)(),
-      cert: aCert,
-    });
-  }).catch(function(aError) {
-    debug(aError);
-  });
-}
 
 // J-PAKE module
 // -----------------------------
 
 // User Interface
 // -----------------------------
-var gRemoteControlUIMenuId;
 const kRemoteControlUIURL = 'chrome://fxostv/content/remote-control-client/client.html';
-function openRemoteControlUI(win) {
-  let tab = win.BrowserApp.addTab(kRemoteControlUIURL);
+
+// Remote Control Manager module
+// -----------------------------
+var gSocketMenuId = null;
+function socketConnect(win) {
+
+  // Store all tabs that containing the remote control pages
+  // let remoteControlTabs = [];
+  let tab;
+
+  let socket;
+
+  // Observer to listen the remote-control message
+  // from remote-control client page
   let _remoteControlObserver = {
     observe: function (aSubject, aTopic, aData) {
       console.log('_remoteControlObserver >> obsere: ' + aTopic);
       if (aTopic != 'remote-control-message') {
         return;
       }
+
+      if (!socket) {
+        console.log('There is no existing socket');
+      }
+
+      // socket.sendMessage(aData);
+
       let remoteControlMsg = JSON.parse(aData);
-      console.log(remoteControlMsg);
+      socket.sendMessage(remoteControlMsg.type, remoteControlMsg.action, remoteControlMsg.detail);
     }
   };
-  Services.obs.addObserver(_remoteControlObserver, 'remote-control-message', false);
+
+  function watchTabs(aEvent) {
+    if (!socket) {
+      console.log('There is no existing socket');
+    }
+
+    // the target is a XUL browser element
+    let browser = aEvent.target;
+    let window = GetRecentWindow();
+    let closedTab = window.BrowserApp.getTabForBrowser(browser);
+    if (closedTab == tab) {
+      console.log('Remote Control tab is closed!');
+      socket.disconnect();
+    }
+  }
+
+  // Get a client certificate first
+  Certificate.getOrCreate()
+  // then connect to server
+  .then(function(aCert) {
+    socket = new Socket(win);
+    return socket.connect({
+      host: "192.168.1.104",
+      port: 8080,
+      authenticator: new (Authenticators.get().Client)(),
+      cert: aCert,
+    });
+  })
+  // then use remote-control client to operate TV
+  .then(function(aTransport) {
+    debug('== Connect Successfully ==');
+
+    // Open the remote control client page
+    tab = win.BrowserApp.addTab(kRemoteControlUIURL);
+
+    // Add a observer to listen the remote control command
+    Services.obs.addObserver(_remoteControlObserver, 'remote-control-message', false);
+
+    win.BrowserApp.deck.addEventListener("TabClose", watchTabs, false);
+  })
+  .catch(function(aError) {
+    debug(aError);
+  });
 }
 
 /*
@@ -712,8 +755,6 @@ function loadIntoWindow(window) {
   gSocketMenuId = window.NativeWindow.menu.add("Socket Connect", null, function() { socketConnect(window); });
   // For Debug: Add a button in menu to do window.PresentationRequest(URL).start()
   gStartRequestMenuId = window.NativeWindow.menu.add("Start Request", null, function() { startRequest(window); });
-  // For Debug: Add a button in menu to do open Remote Control UI
-  gRemoteControlUIMenuId = window.NativeWindow.menu.add("Open UI", null, function() { openRemoteControlUI(window); });
 
   // Initialize PresentationManager for this window
   initPresentationManager(window);
@@ -729,8 +770,6 @@ function unloadFromWindow(window) {
   gSocketMenuId && window.NativeWindow.menu.remove(gSocketMenuId);
   // For Debug: Remove the start-request from menu
   gStartRequestMenuId && window.NativeWindow.menu.remove(gStartRequestMenuId);
-  // For Debug: Remove the remoteControl UI button from menu
-  gRemoteControlUIMenuId && window.NativeWindow.menu.remove(gRemoteControlUIMenuId);
 
   // Delete PresentationManager for this window
   uninitPresentationManager(window);

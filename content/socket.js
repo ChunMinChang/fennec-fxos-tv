@@ -302,8 +302,8 @@ var Socket = function(aWindow) {
   //   });
   // }
 
-  function sendCommand(aMsg) {
-    _debug('sendCommand');
+  function _sendData(aMsg) {
+    _debug('_sendData: ' + aMsg);
 
     return new Promise(function(aResolve, aReject) {
       function writeData(stream) {
@@ -320,6 +320,17 @@ var Socket = function(aWindow) {
 
       _output.asyncWait(_handler, 0, 0, Services.tm.currentThread);
     });
+  }
+
+  function sendMessage(type, action, detail) {
+    _debug('sendMessage');
+    let msg = {
+      type: type,
+      action: action,
+      detail: detail,
+    }
+    let data = JSON.stringify(msg);
+    _sendData(data);
   }
 
   function waitForMessage() {
@@ -347,42 +358,24 @@ var Socket = function(aWindow) {
   function connect(aSettings) {
     _debug('connect');
 
-    if (!aSettings.cert) {
-      _debug('  Need to provide certificate!');
-      return;
-    }
+    return new Promise(function(aResolve, aReject) {
+      if (!aSettings.cert) {
+        aReject('No certificate');
+        return;
+      }
 
-    // Default to PROMPT |Authenticator| instance if not supplied
-    if (!aSettings.authenticator) {
-      _debug('  Set a default client authenticator');
-      // let defaultAuth = Authenticators.get();
-      // aSettings.authenticator = new defaultAuth.Client();
-      aSettings.authenticator = new (Authenticators.get().Client)();
-    }
+      let { host, port, cert } = aSettings;
+      _setOptions(aSettings);
 
-    let { host, port, authenticator, cert } = aSettings;
-
-    _setOptions(aSettings);
-
-    _startClient()
-    // .then(_isConnectionAlive)
-    // .then(_maybeOverwriteServerCertificate)
-    .then(_overwriteServerCertificate)
-    .then(function(aTransport) { // The aResult here is the transport
-      _debug('**** connection built ****');
-
-      // waitForMessage();
-
-      sendCommand('{"type":"command","action":"keypress","detail":"DOM_VK_RETURN"}');
-    })
-    .then(function(aResult) {
-      _debug('**** after connection ****');
-      _window.setTimeout(disconnect, kWaitForDisconnection);
-    })
-    .catch(function(error) {
-      _debug('**** connection failed ****');
-      _debug(error);
-      disconnect();
+      _startClient()
+      // .then(_isConnectionAlive)
+      // .then(_maybeOverwriteServerCertificate)
+      .then(_overwriteServerCertificate)
+      .then(function(aTransport) {
+        aResolve(aTransport)
+      }).catch(function(aError) {
+        aReject(aError);
+      });
     });
   }
 
@@ -400,5 +393,6 @@ var Socket = function(aWindow) {
   return {
     connect: connect,
     disconnect: disconnect,
+    sendMessage: sendMessage,
   };
 };
