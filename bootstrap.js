@@ -1,16 +1,43 @@
 "use strict";
 
 /*
- * Each window object has the following properties
+ * The high-level overview of architecture:
+ *
  *
  *                                 ┌ PresentationConnectionManager
  *           ┌ PresentationManager ┤
  *           │                     └ PresentationDeviceManager
- *   Window ─┤
- *           │
- *           └ UIActionManager
+ *   Window ─┤                                ↑
+ *           │                                │ Call
+ *           └ UIActionManager                │
+ *                 ↑                          │
+ *                 │ Call                     │
+ *                 │                          │
+ *     RemoteControlManager          PresentationDevices
+ *            │                               │
+ *            └────┬──────────────────────────┘
+ *               Global
  *
- *
+ *  PresentationDevices:
+ *    Store all the information of the discovered presentaion-api devices
+ *  PresentationDeviceManager:
+ *    Use |window.navigator.mozPresentationDeviceInfo| to add, update, remove
+ *    presentation devices
+ *  PresentationConnectionManager:
+ *    Use |window.PresentationRequest| to connect, disconnect, send commands
+ *    to presentation devices
+ *  PresentationManager:
+ *    A interface to operate PresentationDeviceManager and
+ *    PresentationConnectionManager. (This might be removed.)
+ *  RemoteControlManager:
+ *    Connect, disconnect, send and receive messages to/from Firefox OS TV
+ *    via our secure channel. The remote-control secure channel is built on
+ *    TLS. We use TLS to build a confidential channel, and then run J-PAKE
+ *    for authentication.
+ *  UIActionManager:
+ *    Show/hide the pageAction and prompt UI depending on conditions.
+ *    User can choose many ways to interact with FxOS TV by
+ *    clicking different options on prompt UI.
  */
 
  /*
@@ -18,7 +45,6 @@
  * ==================================
  */
 const { classes: Cc, interfaces: Ci, utils: Cu } = Components;
-// const { classes: Cc, interfaces: Ci, utils: Cu, results: Cr, manager: Cm, Constructor: CC } = Components;
 
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -28,21 +54,14 @@ Cu.import("resource://gre/modules/Snackbars.jsm");
 
 /*
  * LazyGetter:
- *   You should not call the object defined in LazyGetter too early,
+ *   You should NOT call the object defined in LazyGetter too early,
  *   e.g. in the global scope, or you will get nothing because it's not
  *   loaded!
  */
 
-// An example of how to create a string bundle for localization.
+// An string bundle for localization.
 XPCOMUtils.defineLazyGetter(this, "Strings", function() {
   return Services.strings.createBundle("chrome://fxostv/locale/fxostv.properties");
-});
-
-// An example of how to import a helper module.
-XPCOMUtils.defineLazyGetter(this, "Helper", function() {
-  let sandbox = {};
-  Services.scriptloader.loadSubScript("chrome://fxostv/content/helper.js", sandbox);
-  return sandbox["Helper"];
 });
 
 /*
@@ -94,12 +113,13 @@ function startRequest(win) {
  * Utils
  * ==================================
  */
-// Used to get window
+// To get window object
 function GetRecentWindow() {
 	let window = Services.wm.getMostRecentWindow("navigator:browser");
 	return window;
 }
 
+// To simulate enum
 function CreateEnum(obj) {
   for (let key in obj) {
     obj[key] = key;
@@ -107,16 +127,19 @@ function CreateEnum(obj) {
   return obj;
 }
 
+// To show message below the view
 function ShowMessage(aMsg, aLong) {
   Snackbars.show(aMsg, ((aLong)? Snackbars.LENGTH_LONG : Snackbars.LENGTH_LONG));
 }
 
 /*
- * J-PAKE over TLS
+ * Remote Control: J-PAKE over TLS
  * ==================================
  */
 // Certificate module
 // -----------------------------
+// To get client's certificate for building TLS channel.
+// However, in our case, the server side(FxOS TV) doesn't use this.
 // Dependence:
 //   Components // for using Cc
 XPCOMUtils.defineLazyGetter(this, "Certificate", function() {
@@ -127,6 +150,8 @@ XPCOMUtils.defineLazyGetter(this, "Certificate", function() {
 
 // Authentication module
 // -----------------------------
+// To authenticate our TLS channel.
+// However, the client(the add-on itself) doesn't use it. (We should remove it)
 // Dependence:
 //   cert.js (Certificate module)
 XPCOMUtils.defineLazyGetter(this, "Authenticators", function() {
@@ -137,6 +162,7 @@ XPCOMUtils.defineLazyGetter(this, "Authenticators", function() {
 
 // TLS Socket module
 // -----------------------------
+// To build a TLS channel
 // Dependence:
 //   Components // for using Cc, Ci, Cu
 //   XPCOMUtils.jsm (Use: Services.tm.currentThread)
@@ -150,13 +176,18 @@ XPCOMUtils.defineLazyGetter(this, "Socket", function() {
 
 // J-PAKE module
 // -----------------------------
+// Run J-PAKE to authenticate the servers
 
-// User Interface
+// Remote-control user interface
 // -----------------------------
+// The remote-control client ported from Gaia
+// is located under 'content/remote-control-client/'.
+// The following is the remote-control client page
 const kRemoteControlUIURL = 'chrome://fxostv/content/remote-control-client/client.html';
 
 // Remote Control Manager module
 // -----------------------------
+// The description is in the begining of bootstrap.js.
 var gSocketMenuId = null;
 
 var RemoteControlManager = (function() {
@@ -264,6 +295,7 @@ var RemoteControlManager = (function() {
  */
 // PresentationDevices module
 // -----------------------------
+// The description is in the begining of bootstrap.js.
 XPCOMUtils.defineLazyGetter(this, "PresentationDevices", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationDevices.js", sandbox);
@@ -272,6 +304,7 @@ XPCOMUtils.defineLazyGetter(this, "PresentationDevices", function() {
 
 // PresentationDeviceManager module
 // -----------------------------
+// The description is in the begining of bootstrap.js.
 // Dependence:
 //   Components // for using Cc, Ci
 //   presentationDevices.js
@@ -283,6 +316,7 @@ XPCOMUtils.defineLazyGetter(this, "PresentationDeviceManager", function() {
 
 // PresentationConnectionManager module
 // -----------------------------
+// The description is in the begining of bootstrap.js.
 XPCOMUtils.defineLazyGetter(this, "PresentationConnectionManager", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationConnectionManager.js", sandbox);
@@ -291,6 +325,7 @@ XPCOMUtils.defineLazyGetter(this, "PresentationConnectionManager", function() {
 
 // PresentationManager module
 // -----------------------------
+// The description is in the begining of bootstrap.js.
 // Dependence:
 //   presentationConnectionManager.js
 //   presentationDeviceManager.js
@@ -342,11 +377,12 @@ function uninitPresentationManager(aWindow) {
 
 
 /*
- * UIActionManager
+ * UI Action Manager
  * ==================================
  */
 // PageActionManager module
 // -----------------------------
+// An interface to operate PageAction.jsm
 // Dependence:
 //   PageAction.jsm
 XPCOMUtils.defineLazyGetter(this, "PageActionManager", function() {
@@ -357,6 +393,7 @@ XPCOMUtils.defineLazyGetter(this, "PageActionManager", function() {
 
 // UIActionManager module
 // -----------------------------
+// The description is in the begining of bootstrap.js.
 // Dependence:
 //   PageActionManager.js
 //   PresentationManager

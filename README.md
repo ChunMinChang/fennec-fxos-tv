@@ -31,6 +31,10 @@ $ ./rm_files
 ```
 
 # Notes
+## LazyGetter
+Don't call objects defined in LazyGetter in global scope
+because they aren't loaded yet!
+
 ## Import order of modules
 - Many modules use ```Cc```, ```Cu```, ..etc, so these modules should be called
 after ```const { classes: Cc, interfaces: Ci, utils: Cu } = Components;```.

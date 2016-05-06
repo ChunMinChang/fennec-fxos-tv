@@ -71,13 +71,18 @@ var PresentationDevices = (function () {
     }
   }
 
+  // updateServices now will only be called when onServiceFound is fired.
+  // The parameter |aServiceInfo| is the service information found in
+  // mDNS's network. The presentation-api now is built on the top of mDNS,
+  // but it lacks for providing what the services that devices have, so
+  // we use mDNS to find services.
   function updateServices(aServiceInfo, aType) {
     _debug('updateServices');
     // console.log(aServiceInfo);
 
     let index = _list.findIndex(function(dev) {
       // The |id| of presentation api device
-      // should be the |host| of mdns service
+      // is same of the |host| of mdns service
       return dev.id == aServiceInfo.host;
     });
 
