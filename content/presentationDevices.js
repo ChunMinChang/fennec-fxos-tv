@@ -15,6 +15,8 @@ var PresentationDevices = (function () {
 
   // Containing presentation device's infomation
   function DeviceInfo(aDevice) {
+    // Notice that the |id| of presentation api device
+    // is the |host| of mdns service
     this.id = aDevice.id || 'unidentified';
     this.name = aDevice.name || 'unidentified';
     this.type = aDevice.type || 'unidentified';
@@ -71,9 +73,12 @@ var PresentationDevices = (function () {
 
   function updateServices(aServiceInfo, aType) {
     _debug('updateServices');
+    console.log(aServiceInfo);
 
     let index = _list.findIndex(function(dev) {
-      return dev.name == aServiceInfo.serviceName;
+      // The |id| of presentation api device
+      // should be the |host| of mdns service
+      return dev.id == aServiceInfo.host;
     });
 
     if (index > -1) {
