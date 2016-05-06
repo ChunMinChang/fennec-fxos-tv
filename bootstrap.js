@@ -449,7 +449,7 @@ var UIActionManager = function() {
                        devices[i]);
 
       // Add remote-control service
-      addServiceToMenu(devices[i].remoteControlPort,
+      addServiceToMenu(!!devices[i].remoteControlInfo,
                        _getString('service.remoteControl'),
                        _remoteControl,
                        devices[i]);
@@ -594,6 +594,13 @@ var UIActionManager = function() {
       _debug('  >> there is no available PresentationConnectionManager');
       return;
     }
+
+    _debug('Connect to ' + aTarget.remoteControlInfo.address +
+           ':' + aTarget.remoteControlInfo.port);
+
+    // Connect to TV and remotely operate it on fennec
+    RemoteControlManager.start(aTarget.remoteControlInfo.address,
+                               aTarget.remoteControlInfo.port);
   }
 
   function _castVideo(aWindow, aTarget) {

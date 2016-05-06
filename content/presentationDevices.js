@@ -24,7 +24,7 @@ var PresentationDevices = (function () {
     this.sendVideo = false;
     this.sendPage = true;
     this.pinPage = false;
-    this.remoteControlPort = false;
+    this.remoteControlInfo = false;
   }
 
   // To save all information of the presentation devices discovered
@@ -73,7 +73,7 @@ var PresentationDevices = (function () {
 
   function updateServices(aServiceInfo, aType) {
     _debug('updateServices');
-    console.log(aServiceInfo);
+    // console.log(aServiceInfo);
 
     let index = _list.findIndex(function(dev) {
       // The |id| of presentation api device
@@ -86,7 +86,10 @@ var PresentationDevices = (function () {
       switch(aType) {
         case _serviceEnum.remoteControl:
           _debug("  set remote control port: " + aServiceInfo.port);
-          _list[index].remoteControlPort = aServiceInfo.port;
+          _list[index].remoteControlInfo = {
+            address: aServiceInfo.address,
+            port: aServiceInfo.port,
+          };
           break;
         default:
           _debug("  Can't find any service!");

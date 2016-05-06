@@ -130,7 +130,7 @@ var PresentationDeviceManager = function() {
       if (devs[i].sendVideo ||
           devs[i].sendPage ||
           devs[i].pinPage ||
-          devs[i].remoteControlPort) {
+          !!devs[i].remoteControlInfo) {
         return true;
       }
     }
