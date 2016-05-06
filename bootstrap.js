@@ -156,77 +156,105 @@ const kRemoteControlUIURL = 'chrome://fxostv/content/remote-control-client/clien
 // Remote Control Manager module
 // -----------------------------
 var gSocketMenuId = null;
-function socketConnect(win) {
 
-  // Store all tabs that containing the remote control pages
-  // let remoteControlTabs = [];
-  let tab;
+var RemoteControlManager = (function() {
 
-  let socket;
+  function _debug(aMsg) {
+    console.log('# [RemoteControlManager] ' + aMsg);
+  }
 
-  // Observer to listen the remote-control message
+  // Store the tab of remote-control client page
+  let _tab;
+
+  // Store the TLS socket
+  let _socket;
+
+  // Observer to listen the remote-control messages/commands
   // from remote-control client page
-  let _remoteControlObserver = {
+  let _messageObserver = {
     observe: function (aSubject, aTopic, aData) {
-      console.log('_remoteControlObserver >> obsere: ' + aTopic);
+      _debug('_remoteControlObserver >> obsere: ' + aTopic);
       if (aTopic != 'remote-control-message') {
         return;
       }
 
-      if (!socket) {
-        console.log('There is no existing socket');
+      if (!_socket) {
+        _debug('  There is no existing socket');
+        return;
       }
 
-      // socket.sendMessage(aData);
-
       let remoteControlMsg = JSON.parse(aData);
-      socket.sendMessage(remoteControlMsg.type, remoteControlMsg.action, remoteControlMsg.detail);
+      _socket.sendMessage(remoteControlMsg.type,
+                         remoteControlMsg.action,
+                         remoteControlMsg.detail);
     }
   };
 
-  function watchTabs(aEvent) {
-    if (!socket) {
-      console.log('There is no existing socket');
+  // A callback that will be triggered when tab is closed
+  function _closeTab(aEvent) {
+    _debug('_closeTab');
+
+    if (!_socket) {
+      _debug('  There is no existing socket');
+      return;
     }
 
     // the target is a XUL browser element
     let browser = aEvent.target;
+
+    // Disconnect to server if remote-control client page is closed
     let window = GetRecentWindow();
     let closedTab = window.BrowserApp.getTabForBrowser(browser);
-    if (closedTab == tab) {
-      console.log('Remote Control tab is closed!');
-      socket.disconnect();
+    if (closedTab == _tab) {
+      _debug('  Remote-control client is closed');
+      _socket.disconnect();
     }
   }
 
-  // Get a client certificate first
-  Certificate.getOrCreate()
-  // then connect to server
-  .then(function(aCert) {
-    socket = new Socket(win);
-    return socket.connect({
-      host: "192.168.1.104",
-      port: 8080,
-      authenticator: new (Authenticators.get().Client)(),
-      cert: aCert,
+  // Start connecting to TV:
+  // If connection is successful, we will open a remote-control client page
+  // for users to operate. Otherwise, nothing happens.
+  // Connection will be disconnected once the client page tab
+  // or fennec is closed,
+  function start(aHost, aPort) {
+    _debug('start: ' + aHost + ':' + aPort);
+    // Get a client certificate first(server might need it)
+    Certificate.getOrCreate()
+    // then connect to server
+    .then(function(aCert) {
+      _socket = new Socket();
+
+      return _socket.connect({
+        host: aHost,
+        port: aPort,
+        authenticator: new (Authenticators.get().Client)(),
+        cert: aCert,
+      });
+    })
+    // then use remote-control client to operate TV
+    .then(function(aTransport) {
+      debug('== Connect Successfully ==');
+
+      let window = GetRecentWindow();
+
+      // Load the remote control client page into tab
+      _tab = window.BrowserApp.addTab(kRemoteControlUIURL);
+
+      // Add a observer to listen the remote control commands
+      Services.obs.addObserver(_messageObserver, 'remote-control-message', false);
+
+      // Listen the TabClose: Disconnect to
+      window.BrowserApp.deck.addEventListener("TabClose", _closeTab, false);
+    })
+    .catch(function(aError) {
+      debug(aError);
     });
-  })
-  // then use remote-control client to operate TV
-  .then(function(aTransport) {
-    debug('== Connect Successfully ==');
+  }
 
-    // Open the remote control client page
-    tab = win.BrowserApp.addTab(kRemoteControlUIURL);
-
-    // Add a observer to listen the remote control command
-    Services.obs.addObserver(_remoteControlObserver, 'remote-control-message', false);
-
-    win.BrowserApp.deck.addEventListener("TabClose", watchTabs, false);
-  })
-  .catch(function(aError) {
-    debug(aError);
-  });
-}
+  return {
+    start: start,
+  };
+})();
 
 /*
  * Presentation API
@@ -752,7 +780,7 @@ function loadIntoWindow(window) {
   // For Debug: Add a button in menu to do force-discovery
   gDiscoveryMenuId = window.NativeWindow.menu.add("Search Devices", null, function() { discoveryDevices(window); });
   // For Debug: Add a button in menu to do socket-connecting
-  gSocketMenuId = window.NativeWindow.menu.add("Socket Connect", null, function() { socketConnect(window); });
+  gSocketMenuId = window.NativeWindow.menu.add("Socket Connect", null, function() { RemoteControlManager.start("192.168.1.104", 8080); });
   // For Debug: Add a button in menu to do window.PresentationRequest(URL).start()
   gStartRequestMenuId = window.NativeWindow.menu.add("Start Request", null, function() { startRequest(window); });
 
