@@ -30,6 +30,14 @@ in [<mozilla-central>/mobile/android/app/mobile.js][mobileJS_link]
 $ ./rm_files
 ```
 
+# Notes
+## Import order of modules
+- Many modules use ```Cc```, ```Cu```, ..etc, so these modules should be called
+after ```const { classes: Cc, interfaces: Ci, utils: Cu } = Components;```.
+- _socket.js_ will call ```let window = GetRecentWindow();```
+to use ```window.setTimeout```, so _socket.js_ must be loaded
+after the declaration of ```GetRecentWindow()```.
+
 # Future Risk Issues
 XPCOM calling/registration in add-on will be
 [deprecated at the end of this year][xpcom_deprecated], or early next year,

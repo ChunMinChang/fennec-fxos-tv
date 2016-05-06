@@ -118,6 +118,7 @@ function ShowMessage(aMsg, aLong) {
 // Certificate module
 // -----------------------------
 // Dependence:
+//   Components // for using Cc
 XPCOMUtils.defineLazyGetter(this, "Certificate", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/cert.js", sandbox);
@@ -137,6 +138,7 @@ XPCOMUtils.defineLazyGetter(this, "Authenticators", function() {
 // TLS Socket module
 // -----------------------------
 // Dependence:
+//   Components // for using Cc, Ci, Cu
 //   XPCOMUtils.jsm (Use: Services.tm.currentThread)
 //   auth.js (Authentication module)
 //   cert.js (Certificate module)
@@ -271,6 +273,7 @@ XPCOMUtils.defineLazyGetter(this, "PresentationDevices", function() {
 // PresentationDeviceManager module
 // -----------------------------
 // Dependence:
+//   Components // for using Cc, Ci
 //   presentationDevices.js
 XPCOMUtils.defineLazyGetter(this, "PresentationDeviceManager", function() {
   let sandbox = {};
