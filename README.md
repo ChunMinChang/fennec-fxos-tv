@@ -1,5 +1,5 @@
 # Features
-- Scanning nearby devices by W3C presentation api
+- Scanning nearby devices by __W3C Presentation api__
 - Sending webpage via presentation api
 - Remotely controlling your Firefox OS TV
   - protocol: J-PAKE over TLS
@@ -30,7 +30,7 @@ in [<mozilla-central>/mobile/android/app/mobile.js][mobileJS_link]
 $ ./rm_files
 ```
 
-# Note
+# Future Risk Issues
 XPCOM calling/registration in add-on will be
 [deprecated at the end of this year][xpcom_deprecated], or early next year,
 so this add-on may need to be refactored with new style to meet the new policy.
