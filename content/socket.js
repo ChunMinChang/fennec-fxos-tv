@@ -306,20 +306,33 @@ var Socket = function() {
   function _sendData(aMsg) {
     _debug('_sendData: ' + aMsg);
 
+    // return new Promise(function(aResolve, aReject) {
+    //   function writeData(stream) {
+    //     _unregisterCallback('onOutput');
+    //     try {
+    //       stream.write(aMsg, aMsg.length);
+    //       aResolve();
+    //     } catch(e) {
+    //       aReject(e);
+    //     }
+    //   }
+    //
+    //   _registerCallback('onOutput', writeData);
+    //
+    //   _output.asyncWait(_handler, 0, 0, Services.tm.currentThread);
+    // });
+
     return new Promise(function(aResolve, aReject) {
-      function writeData(stream) {
-        _unregisterCallback('onOutput');
-        try {
-          stream.write(aMsg, aMsg.length);
-          aResolve();
-        } catch(e) {
-          aReject(e);
+      _output.asyncWait({
+        onOutputStreamReady: function(stream) {
+          try {
+            stream.write(aMsg, aMsg.length);
+            aResolve();
+          } catch(e) {
+            aReject(e);
+          }
         }
-      }
-
-      _registerCallback('onOutput', writeData);
-
-      _output.asyncWait(_handler, 0, 0, Services.tm.currentThread);
+      }, 0, 0, Services.tm.currentThread);
     });
   }
 
