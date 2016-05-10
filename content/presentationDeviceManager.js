@@ -109,12 +109,13 @@ var PresentationDeviceManager = function() {
 
       case 'remove':
         PresentationDevices.remove(aEvent.detail.deviceInfo);
-        break;
 
         // Fire listeners
         for (let i in _onRemoveListeners) {
           _onRemoveListeners[i](aEvent);
         }
+
+        break;
 
       default:
         _debug('No event handler for this type');
