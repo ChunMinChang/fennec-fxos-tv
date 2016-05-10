@@ -86,7 +86,7 @@ var PresentationConnectionManager = function() {
         _session.onstatechange = _onStatechange;
         aResolve();
       }).catch(function(aError) {
-        aReject(error);
+        aReject(aError);
       });
     });
   }
