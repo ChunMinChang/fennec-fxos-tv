@@ -196,53 +196,96 @@ var RemoteControlManager = (function() {
     console.log('# [RemoteControlManager] ' + aMsg);
   }
 
-  // Store the tab of remote-control client page
-  let _tab;
+  // Store the TLS session information
+  function Session(aHost, aPort, aSocket) {
+    this.host = aHost || false;
+    this.port = aPort || -1;
+    this.socket = aSocket || false;
+  }
 
-  // Store the TLS socket
-  let _socket;
+  // _sessions = {
+  //   tabId: Session(host, port, socket),
+  //   ...
+  // }
+  let _sessions = {};
 
-  // Observer to listen the remote-control messages/commands
+  function _resetAll() {
+    // Disconnect all sockets
+    for (var tabId in _sessions) {
+      _sessions[tabId].socket.disconnect();
+    }
+
+    // clear all sessions
+    _sessions = {};
+  }
+
+  // A callback that will be triggered when tab is closed
+  let _closeTab = {
+    inuse: false,
+    onClose: function _onClose(aEvent) {
+      _debug('_closeTab');
+
+      // the target is a XUL browser element
+      let browser = aEvent.target;
+
+      // Disconnect to server if remote-control client page is closed
+      let window = GetRecentWindow();
+      let closedTab = window.BrowserApp.getTabForBrowser(browser);
+
+      if (!_sessions[closedTab.id]) {
+        _debug('  The closed tab is not remote-control client page');
+        return;
+      }
+
+      let socket = _sessions[closedTab.id].socket;
+
+      if (!socket) {
+        _debug('  There is no existing socket for this client');
+        return;
+      }
+
+      socket.disconnect();
+
+      // Remove this session from _sessions
+      delete _sessions[closedTab.id];
+
+      // Remove observer for remote-control client page and
+      // remove listener for tab close when no session exist
+      if (Object.keys(_sessions).length === 0 &&
+          JSON.stringify(_sessions) === JSON.stringify({})) {
+        _debug('  Remove observer to receive remote-control messages');
+        Services.obs.removeObserver(_messageObserver, 'remote-control-message');
+        _messageObserver.inuse = false;
+
+        _debug('  Remove listener to receive TabClose');
+        window.BrowserApp.deck.removeEventListener("TabClose", this.onClose, false);
+        this.inuse = false;
+      }
+    }
+  };
+
+  // Receives the remote-control messages/commands
   // from remote-control client page
   let _messageObserver = {
+    inuse: false,
     observe: function (aSubject, aTopic, aData) {
       _debug('_remoteControlObserver >> obsere: ' + aTopic);
       if (aTopic != 'remote-control-message') {
         return;
       }
 
-      if (!_socket) {
-        _debug('  There is no existing socket');
+      let msg = JSON.parse(aData);
+
+      let socket = _sessions[msg.tabId].socket;
+
+      if (!socket) {
+        _debug('  There is no existing socket for this client');
         return;
       }
 
-      let remoteControlMsg = JSON.parse(aData);
-      _socket.sendMessage(remoteControlMsg.type,
-                         remoteControlMsg.action,
-                         remoteControlMsg.detail);
+      socket.sendMessage(msg.type, msg.action, msg.detail);
     }
   };
-
-  // A callback that will be triggered when tab is closed
-  function _closeTab(aEvent) {
-    _debug('_closeTab');
-
-    if (!_socket) {
-      _debug('  There is no existing socket');
-      return;
-    }
-
-    // the target is a XUL browser element
-    let browser = aEvent.target;
-
-    // Disconnect to server if remote-control client page is closed
-    let window = GetRecentWindow();
-    let closedTab = window.BrowserApp.getTabForBrowser(browser);
-    if (closedTab == _tab) {
-      _debug('  Remote-control client is closed');
-      _socket.disconnect();
-    }
-  }
 
   // Start connecting to TV:
   // If connection is successful, we will open a remote-control client page
@@ -251,13 +294,18 @@ var RemoteControlManager = (function() {
   // or fennec is closed,
   function start(aHost, aPort) {
     _debug('start: ' + aHost + ':' + aPort);
+
+    let socket;
+
     // Get a client certificate first(server might need it)
     Certificate.getOrCreate()
     // then connect to server
     .then(function(aCert) {
-      _socket = new Socket();
 
-      return _socket.connect({
+      // Store all TLS session information
+      socket = new Socket();
+
+      return socket.connect({
         host: aHost,
         port: aPort,
         authenticator: new (Authenticators.get().Client)(),
@@ -271,16 +319,29 @@ var RemoteControlManager = (function() {
       let window = GetRecentWindow();
 
       // Load the remote control client page into tab
-      _tab = window.BrowserApp.addTab(kRemoteControlUIURL);
+      let tab = window.BrowserApp.addTab(kRemoteControlUIURL);
+
+      // Store the TLS session information
+      _sessions[tab.id] = new Session(aHost, aPort, socket);
 
       // Add a observer to listen the remote control commands
-      Services.obs.addObserver(_messageObserver, 'remote-control-message', false);
+      if (!_messageObserver.inuse) {
+        _debug('  Add observer to receive remote-control messages');
+        Services.obs.addObserver(_messageObserver, 'remote-control-message', false);
+        _messageObserver.inuse = true;
+      }
 
-      // Listen the TabClose: Disconnect to
-      window.BrowserApp.deck.addEventListener("TabClose", _closeTab, false);
+      // Listen the TabClose to disconnect the socket and remove the observer
+      // to receive remote-control messages
+      if (!_closeTab.inuse) {
+        _debug('  Add listener to receive TabClose');
+        window.BrowserApp.deck.addEventListener("TabClose", _closeTab.onClose, false);
+        _closeTab.inuse = true;
+      }
     })
     .catch(function(aError) {
       debug(aError);
+      _resetAll();
     });
   }
 
