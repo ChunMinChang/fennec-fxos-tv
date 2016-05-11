@@ -219,55 +219,49 @@ var RemoteControlManager = (function() {
     _sessions = {};
   }
 
-  // A callback that will be triggered when tab is closed
-  let _closeTab = {
-    inuse: false,
-    onClose: function _onClose(aEvent) {
-      _debug('_closeTab');
+  // A listener that will be fired when tab is closed
+  function _onTabClose(aEvent) {
+    _debug('_onTabClose');
 
-      // the target is a XUL browser element
-      let browser = aEvent.target;
+    // the target is a XUL browser element
+    let browser = aEvent.target;
 
-      // Disconnect to server if remote-control client page is closed
-      let window = GetRecentWindow();
-      let closedTab = window.BrowserApp.getTabForBrowser(browser);
+    // Disconnect to server if remote-control client page is closed
+    let window = GetRecentWindow();
+    let closedTab = window.BrowserApp.getTabForBrowser(browser);
 
-      if (!_sessions[closedTab.id]) {
-        _debug('  The closed tab is not remote-control client page');
-        return;
-      }
-
-      let socket = _sessions[closedTab.id].socket;
-
-      if (!socket) {
-        _debug('  There is no existing socket for this client');
-        return;
-      }
-
-      socket.disconnect();
-
-      // Remove this session from _sessions
-      delete _sessions[closedTab.id];
-
-      // Remove observer for remote-control client page and
-      // remove listener for tab close when no session exist
-      if (Object.keys(_sessions).length === 0 &&
-          JSON.stringify(_sessions) === JSON.stringify({})) {
-        _debug('  Remove observer to receive remote-control messages');
-        Services.obs.removeObserver(_messageObserver, 'remote-control-message');
-        _messageObserver.inuse = false;
-
-        _debug('  Remove listener to receive TabClose');
-        window.BrowserApp.deck.removeEventListener("TabClose", this.onClose, false);
-        this.inuse = false;
-      }
+    if (!_sessions[closedTab.id]) {
+      _debug('  The closed tab is not remote-control client page');
+      return;
     }
-  };
 
-  // Receives the remote-control messages/commands
+    let socket = _sessions[closedTab.id].socket;
+
+    if (!socket) {
+      _debug('  There is no existing socket for this client');
+      return;
+    }
+
+    socket.disconnect();
+
+    // Remove this session from _sessions
+    delete _sessions[closedTab.id];
+
+    // Remove observer and listener to receive remote-control messages and
+    // TabClose event when all sessions are removed
+    if (Object.keys(_sessions).length === 0 &&
+        JSON.stringify(_sessions) === JSON.stringify({})) {
+      _debug('  Remove observer to receive remote-control messages');
+      Services.obs.removeObserver(_messageObserver, 'remote-control-message');
+
+      _debug('  Remove listener to receive TabClose');
+      window.BrowserApp.deck.removeEventListener("TabClose", _onTabClose, false);
+    }
+  }
+
+  // Observer to receive remote-control messages/commands
   // from remote-control client page
   let _messageObserver = {
-    inuse: false,
     observe: function (aSubject, aTopic, aData) {
       _debug('_remoteControlObserver >> obsere: ' + aTopic);
       if (aTopic != 'remote-control-message') {
@@ -324,19 +318,14 @@ var RemoteControlManager = (function() {
       // Store the TLS session information
       _sessions[tab.id] = new Session(aHost, aPort, socket);
 
-      // Add a observer to listen the remote control commands
-      if (!_messageObserver.inuse) {
+      // Add observer and listener to receive remote-control messages and
+      // TabClose event when the first session is built
+      if (Object.keys(_sessions).length == 1) {
         _debug('  Add observer to receive remote-control messages');
         Services.obs.addObserver(_messageObserver, 'remote-control-message', false);
-        _messageObserver.inuse = true;
-      }
 
-      // Listen the TabClose to disconnect the socket and remove the observer
-      // to receive remote-control messages
-      if (!_closeTab.inuse) {
         _debug('  Add listener to receive TabClose');
-        window.BrowserApp.deck.addEventListener("TabClose", _closeTab.onClose, false);
-        _closeTab.inuse = true;
+        window.BrowserApp.deck.addEventListener("TabClose", _onTabClose, false);
       }
     })
     .catch(function(aError) {
