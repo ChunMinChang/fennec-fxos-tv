@@ -347,8 +347,8 @@ var Socket = function() {
     _sendData(data);
   }
 
-  function waitForMessage() {
-    _debug('waitForMessage');
+  function receiveMessage() {
+    _debug('receiveMessage');
 
     return new Promise(function(aResolve, aReject) {
       function readData(stream) {
@@ -357,7 +357,7 @@ var Socket = function() {
         try {
           let data = NetUtil.readInputStreamToString(_input, _input.available());
           _debug('Receive: ' + data);
-          aResolve();
+          aResolve(data);
         } catch(e) {
           aReject(e);
         }
@@ -408,5 +408,6 @@ var Socket = function() {
     connect: connect,
     disconnect: disconnect,
     sendMessage: sendMessage,
+    receiveMessage: receiveMessage,
   };
 };

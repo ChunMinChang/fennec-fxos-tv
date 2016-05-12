@@ -162,7 +162,7 @@ XPCOMUtils.defineLazyGetter(this, "Authenticators", function() {
 
 // TLS Socket module
 // -----------------------------
-// To build a TLS channel
+// To build a confidential TLS channel without authentication
 // Dependence:
 //   Components // for using Cc, Ci, Cu
 //   XPCOMUtils.jsm (Use: Services.tm.currentThread)
@@ -174,9 +174,17 @@ XPCOMUtils.defineLazyGetter(this, "Socket", function() {
   return sandbox["Socket"];
 });
 
-// J-PAKE module
+// Authenticated TLS Socket module
 // -----------------------------
-// Run J-PAKE to authenticate the servers
+// Run J-PAKE to authenticate the TLS channel to the servers
+// Dependence:
+//   Components // for using Cc, Ci, Cu
+//   socket.js  // for TLS socket module
+XPCOMUtils.defineLazyGetter(this, "AuthSocket", function() {
+  let sandbox = {};
+  Services.scriptloader.loadSubScript("chrome://fxostv/content/authSocket.js", sandbox);
+  return sandbox["AuthSocket"];
+});
 
 // Remote-control user interface
 // -----------------------------
@@ -197,14 +205,14 @@ var RemoteControlManager = (function() {
   }
 
   // Store the TLS session information
-  function Session(aHost, aPort, aSocket) {
+  function Session(aHost, aPort, aAuthSocket) {
     this.host = aHost || false;
     this.port = aPort || -1;
-    this.socket = aSocket || false;
+    this.authSocket = aAuthSocket || false;
   }
 
   // _sessions = {
-  //   tabId: Session(host, port, socket),
+  //   tabId: Session(host, port, authSocket),
   //   ...
   // }
   let _sessions = {};
@@ -212,7 +220,7 @@ var RemoteControlManager = (function() {
   function _resetAll() {
     // Disconnect all sockets
     for (var tabId in _sessions) {
-      _sessions[tabId].socket.disconnect();
+      _sessions[tabId].authSocket.disconnect();
     }
 
     // clear all sessions
@@ -235,14 +243,14 @@ var RemoteControlManager = (function() {
       return;
     }
 
-    let socket = _sessions[closedTab.id].socket;
+    let authSocket = _sessions[closedTab.id].authSocket;
 
-    if (!socket) {
-      _debug('  There is no existing socket for this client');
+    if (!authSocket) {
+      _debug('  There is no existing authSocket for this client');
       return;
     }
 
-    socket.disconnect();
+    authSocket.disconnect();
 
     // Remove this session from _sessions
     delete _sessions[closedTab.id];
@@ -270,14 +278,14 @@ var RemoteControlManager = (function() {
 
       let msg = JSON.parse(aData);
 
-      let socket = _sessions[msg.tabId].socket;
+      let authSocket = _sessions[msg.tabId].authSocket;
 
-      if (!socket) {
-        _debug('  There is no existing socket for this client');
+      if (!authSocket) {
+        _debug('  There is no existing authSocket for this client');
         return;
       }
 
-      socket.sendMessage(msg.type, msg.action, msg.detail);
+      authSocket.sendMessage(msg.type, msg.action, msg.detail);
     }
   };
 
@@ -289,7 +297,7 @@ var RemoteControlManager = (function() {
   function start(aHost, aPort) {
     _debug('start: ' + aHost + ':' + aPort);
 
-    let socket;
+    let authSocket;
 
     // Get a client certificate first(server might need it)
     Certificate.getOrCreate()
@@ -297,9 +305,9 @@ var RemoteControlManager = (function() {
     .then(function(aCert) {
 
       // Store all TLS session information
-      socket = new Socket();
+      authSocket = new AuthSocket();
 
-      return socket.connect({
+      return authSocket.connect({
         host: aHost,
         port: aPort,
         authenticator: new (Authenticators.get().Client)(),
@@ -316,7 +324,7 @@ var RemoteControlManager = (function() {
       let tab = window.BrowserApp.addTab(kRemoteControlUIURL);
 
       // Store the TLS session information
-      _sessions[tab.id] = new Session(aHost, aPort, socket);
+      _sessions[tab.id] = new Session(aHost, aPort, authSocket);
 
       // Add observer and listener to receive remote-control messages and
       // TabClose event when the first session is built
