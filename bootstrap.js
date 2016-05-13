@@ -174,12 +174,23 @@ XPCOMUtils.defineLazyGetter(this, "Socket", function() {
   return sandbox["Socket"];
 });
 
+// J-PAKE module
+// -----------------------------
+// To authenticate the confidential TLS channel
+// Dependence:
+//   Components // for using Cc, Ci
+XPCOMUtils.defineLazyGetter(this, "JPAKE", function() {
+  let sandbox = {};
+  Services.scriptloader.loadSubScript("chrome://fxostv/content/jpake.js", sandbox);
+  return sandbox["JPAKE"];
+});
+
 // Authenticated TLS Socket module
 // -----------------------------
 // Run J-PAKE to authenticate the TLS channel to the servers
 // Dependence:
-//   Components // for using Cc, Ci, Cu
 //   socket.js  // for TLS socket module
+//   jpake.js   // for J-PAKE module
 XPCOMUtils.defineLazyGetter(this, "AuthSocket", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/authSocket.js", sandbox);
@@ -285,7 +296,7 @@ var RemoteControlManager = (function() {
         return;
       }
 
-      authSocket.sendMessage(msg.type, msg.action, msg.detail);
+      authSocket.sendCommand(msg.action, msg.detail);
     }
   };
 

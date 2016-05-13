@@ -18,14 +18,14 @@ var AuthSocket = function() {
     _socket.disconnect();
   }
 
-  function sendMessage(type, action, detail) {
-    _debug('sendMessage');
-    _socket.sendMessage(type, action, detail);
+  function sendCommand(aAction, aDetail) {
+    _debug('sendCommand');
+    _socket.sendMessage('command', aAction, aDetail);
   }
 
   return {
     connect: connect,
     disconnect: disconnect,
-    sendMessage: sendMessage,
+    sendCommand: sendCommand,
   };
 };

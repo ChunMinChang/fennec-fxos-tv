@@ -35,7 +35,7 @@ Cu.import("resource://gre/modules/Services.jsm");
     document.addEventListener('load', wrapper);
   };
 
-  exports.sendMessage = function(type, action, detail) {
+  exports.sendCommand = function(action, detail) {
     // Get the tab id for this remote-control client page
     let window = Services.wm.getMostRecentWindow("navigator:browser");
     let tabId = window.BrowserApp.selectedTab.id;
@@ -43,7 +43,6 @@ Cu.import("resource://gre/modules/Services.jsm");
     // Message to notify RemoteControlManager in bootstrap.js
     let data = {
       tabId: tabId,
-      type: type,
       action: action,
       detail: detail,
     }

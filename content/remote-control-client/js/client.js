@@ -18,7 +18,7 @@
       return;
     }
 
-    exports.sendMessage('command', action, (typeof detail === 'object') ? detail : detail.toString());
+    exports.sendCommand(action, (typeof detail === 'object') ? detail : detail.toString());
   }
 
   function inputStringSyncHandler() {
