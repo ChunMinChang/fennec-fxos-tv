@@ -336,15 +336,15 @@ var Socket = function() {
     });
   }
 
-  function sendMessage(type, action, detail) {
+  function sendMessage(aType, aAction, aDetail) {
     _debug('sendMessage');
     let msg = {
-      type: type,
-      action: action,
-      detail: detail,
+      type: aType,
+      action: aAction,
+      detail: aDetail,
     }
     let data = JSON.stringify(msg);
-    _sendData(data);
+    return _sendData(data);
   }
 
   function receiveMessage() {
