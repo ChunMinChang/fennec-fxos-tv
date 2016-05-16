@@ -27,49 +27,7 @@
 
       btnSubmit.disabled = true;
 
-      var onerror = function(message) {
-        pinCodeInput.empty();
-        btnSubmit.disabled = false;
-        showMessage(message, true);
-      };
-
-      exports.sendMessage(
-        AJAX_URL,
-        {
-          message: JSON.stringify({ pincode: pincode })
-        },
-        function success(data) {
-          if (data) {
-            if (data.verified) {
-              document.l10n.formatValue('connect-success')
-                .then(function(value) {
-                  showMessage(value);
-                  // The cookie will be used by server via http header.
-                  exports.setCookie('uuid', data.uuid);
-                  setTimeout(function() {
-                    // Server will help redirecting to client.html when there is
-                    // a UUID in cookie.
-                    window.location.reload();
-                  }, 1000);
-                });
-            } else if (data.reason == 'expired') {
-              document.l10n.formatValue('pin-code-expired-message')
-                .then(onerror);
-              document.getElementById('pairing-container')
-                .classList.add('pin-code-expired');
-            } else {
-              document.l10n.formatValue('wrong-pin').then(onerror);
-            }
-          } else {
-            document.l10n.formatValue('connect-error-invalid-response')
-              .then(onerror);
-          }
-        },
-        function error(status) {
-          document.l10n.formatValue('connect-error', {status: String(status)})
-            .then(onerror);
-        }
-      );
+      exports.sendPINCode(pincode);
     });
   }
 
