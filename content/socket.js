@@ -28,6 +28,8 @@ var Socket = function() {
   let _input,
       _output;
 
+  let _messageReceiver;
+
   function _debug(aMsg) {
     console.log('# [Socket] ' + aMsg);
   }
@@ -91,6 +93,13 @@ var Socket = function() {
 
     onInputStreamReady: function(aInputStream) {
       _debug('_handler >> onInputStreamReady');
+
+      try {
+        aInputStream.available();
+      } catch(e) {
+        _debug(e);
+        disconnect();
+      }
 
       _handlerCallback.onInput &&
       typeof _handlerCallback.onInput === 'function' &&
@@ -341,32 +350,83 @@ var Socket = function() {
     let msg = {
       type: aType,
       action: aAction,
-      detail: aDetail,
+      // detail: aDetail,
     }
+
+    if (aDetail) {
+      msg.detail = aDetail;
+    }
+
     let data = JSON.stringify(msg);
     return _sendData(data);
   }
 
-  function receiveMessage() {
-    _debug('receiveMessage');
+  // function _receiveData() {
+  //   _debug('_receiveData');
+  //
+  //   // return new Promise(function(aResolve, aReject) {
+  //   //   function readData(stream) {
+  //   //     _unregisterCallback('onInput');
+  //   //
+  //   //     try {
+  //   //       let data = NetUtil.readInputStreamToString(_input, _input.available());
+  //   //       _debug('Receive: ' + data);
+  //   //       aResolve(data);
+  //   //     } catch(e) {
+  //   //       aReject(e);
+  //   //     }
+  //   //   }
+  //   //
+  //   //   _registerCallback('onInput', readData);
+  //   //
+  //   //   _input.asyncWait(_handler, 0, 0, Services.tm.currentThread);
+  //   // });
+  //
+  //   return new Promise(function(aResolve, aReject) {
+  //     _input.asyncWait({
+  //       onInputStreamReady: function(stream) {
+  //         try {
+  //           let data = NetUtil.readInputStreamToString(_input, _input.available());
+  //           _debug('Receive: ' + data);
+  //           aResolve(data);
+  //         } catch(e) {
+  //           aReject(e);
+  //         }
+  //       }
+  //     }, 0, 0, Services.tm.currentThread);
+  //   });
+  // }
+  //
+  // function receiveMessage() {
+  //   _debug('receiveMessage');
+  //   _receiveData()
+  //   .then(function(aData) {
+  //     let msg = JSON.parse(aData);
+  //     return Promise.resolve(msg);
+  //   })
+  //   .catch(function(aError) {
+  //     // return Promise.reject(aError);
+  //     throw new Error(aError);
+  //   });
+  // }
 
-    return new Promise(function(aResolve, aReject) {
-      function readData(stream) {
-        _unregisterCallback('onInput');
+  function setMessageReceiver(aMessageReceiver) {
+    _debug('setMessageReceiver');
 
-        try {
-          let data = NetUtil.readInputStreamToString(_input, _input.available());
-          _debug('Receive: ' + data);
-          aResolve(data);
-        } catch(e) {
-          aReject(e);
-        }
-      }
+    _messageReceiver = aMessageReceiver;
 
-      _registerCallback('onInput', readData);
+    function handleReceivedData(stream) {
+      let data = NetUtil.readInputStreamToString(_input, _input.available());
+      _debug('Receive: ' + data);
+      let msg = JSON.parse(data);
+      _messageReceiver(msg);
 
       _input.asyncWait(_handler, 0, 0, Services.tm.currentThread);
-    });
+    }
+
+    _registerCallback('onInput', handleReceivedData);
+
+    _input.asyncWait(_handler, 0, 0, Services.tm.currentThread);
   }
 
   function connect(aSettings) {
@@ -408,6 +468,7 @@ var Socket = function() {
     connect: connect,
     disconnect: disconnect,
     sendMessage: sendMessage,
-    receiveMessage: receiveMessage,
+    // receiveMessage: receiveMessage,
+    setMessageReceiver: setMessageReceiver,
   };
 };
