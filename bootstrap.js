@@ -189,8 +189,9 @@ XPCOMUtils.defineLazyGetter(this, "JPAKE", function() {
 // -----------------------------
 // Run J-PAKE to authenticate the TLS channel to the servers
 // Dependence:
-//   socket.js  // for TLS socket module
-//   jpake.js   // for J-PAKE module
+//   socket.js        // for TLS socket module
+//   jpake.js         // for J-PAKE module
+//   GetRecentWindow  // for getting window
 XPCOMUtils.defineLazyGetter(this, "AuthSocket", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/authSocket.js", sandbox);
@@ -201,7 +202,12 @@ XPCOMUtils.defineLazyGetter(this, "AuthSocket", function() {
 // -----------------------------
 // The remote-control client ported from Gaia
 // is located under 'content/remote-control-client/'.
-// The following is the remote-control client page
+// Dependence:
+//   GetRecentWindow
+
+// The remote-control client PIN page
+const kRemoteControlPINURL = 'chrome://fxostv/content/remote-control-client/pairing.html';
+// The remote-control client page
 const kRemoteControlUIURL = 'chrome://fxostv/content/remote-control-client/client.html';
 
 // Remote Control Manager module
@@ -323,6 +329,7 @@ var RemoteControlManager = (function() {
         port: aPort,
         authenticator: new (Authenticators.get().Client)(),
         cert: aCert,
+        PIN: 1234,
       });
     })
     // then use remote-control client to operate TV
