@@ -38,6 +38,11 @@ var AuthSocket = function() {
   });
   let _authState = AUTH_STATE.IDLE;
 
+  // Callback that will be fired after finishing authentication
+  // function callback(auth) {}:
+  //   auth is true if authnication is passed. Otherwise, it's false.
+  let _afterAuthenticatingCallback;
+
   function _debug(aMsg) {
     console.log('# [AuthSocket] ' + aMsg);
   }
@@ -218,8 +223,10 @@ var AuthSocket = function() {
           // The twice-hashed AES key is supposed to be same
           // as the server's signature
           if (twiceHashAESKey != serverSignature) {
-            _debug('serverSignature is wrong!');
-            throw new Error('The twice-hashed signature from server is incorrect.');
+            _debug('serverSignature is wrong :(');
+
+            // Fire the callback to notify that the authentication failed
+            _afterAuthenticatingCallback(false);
             return;
           }
 
@@ -247,6 +254,14 @@ var AuthSocket = function() {
         // The current state should be FINISH
         _authState = AUTH_STATE.FINISH;
 
+        // Get the assigned client ID by server
+        _serverAssignedID = aMsg.detail.id;
+
+        _debug('Pass the authentication :)');
+
+        // Fire the callback to notify that the authentication is passed
+        _afterAuthenticatingCallback(true);
+
         break;
 
       default:
@@ -254,16 +269,36 @@ var AuthSocket = function() {
     }
   }
 
+  // function connect(aSettings) {
+  //   _debug('connect');
+  //
+  //   // Set PIN code to J-PAKE module
+  //   _jpake.PIN = aSettings.PIN;
+  //
+  //   _socket.connect(aSettings)
+  //   // Request handshake
+  //   .then(function() {
+  //     // Set a listener to continuously receive the messages
+  //     _socket.setMessageReceiver(_messageReceiver);
+  //
+  //     // The current state should be REQEST_HANDSHAKE
+  //     _authState = AUTH_STATE.REQEST_HANDSHAKE;
+  //
+  //     // Send HANDSHAKE request to TV
+  //     _sendAuthentication('request_handshake',
+  //                         (_serverAssignedID) ? { id: _serverAssignedID } : null);
+  //   });
+  // }
 
   function connect(aSettings) {
     _debug('connect');
 
+    // Set PIN code to J-PAKE module
     _jpake.PIN = aSettings.PIN;
 
-    // return _socket.connect(aSettings);
     _socket.connect(aSettings)
     // Request handshake
-    .then(function() {
+    .then(function(aTransport) {
       // Set a listener to continuously receive the messages
       _socket.setMessageReceiver(_messageReceiver);
 
@@ -274,12 +309,16 @@ var AuthSocket = function() {
       _sendAuthentication('request_handshake',
                           (_serverAssignedID) ? { id: _serverAssignedID } : null);
     });
-  }
 
-  // function connect(aSettings) {
-  //   _debug('connect');
-  //   return _socket.connect(aSettings);
-  // }
+    return new Promise(function(aResolve, aReject) {
+      function afterAuthentication(aResult) {
+        _debug('afterAuthentication: ' + aResult);
+        (aResult) ? aResolve() : aReject();
+      }
+
+      _afterAuthenticatingCallback = afterAuthentication;
+    });
+  }
 
   function disconnect() {
     _debug('disconnect');

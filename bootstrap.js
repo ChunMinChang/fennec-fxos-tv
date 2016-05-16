@@ -206,7 +206,7 @@ XPCOMUtils.defineLazyGetter(this, "AuthSocket", function() {
 //   GetRecentWindow
 
 // The remote-control client PIN page
-const kRemoteControlPINURL = 'chrome://fxostv/content/remote-control-client/pairing.html';
+const kRemoteControlPairingPINURL = 'chrome://fxostv/content/remote-control-client/pairing.html';
 // The remote-control client page
 const kRemoteControlUIURL = 'chrome://fxostv/content/remote-control-client/client.html';
 
@@ -221,10 +221,21 @@ var RemoteControlManager = (function() {
     console.log('# [RemoteControlManager] ' + aMsg);
   }
 
+  // let _bundle = null;
+  function _getString(aName) {
+    _debug('_getString');
+    // if (!_bundle) {
+    //     _bundle = Services.strings.createBundle("chrome://fxostv/locale/fxostv.properties");
+    // }
+    // return _bundle.GetStringFromName(aName);
+    return Strings.GetStringFromName(aName);
+  }
+
   // Store the TLS session information
-  function Session(aHost, aPort, aAuthSocket) {
+  function Session(aHost, aPort, aPairingPIN, aAuthSocket) {
     this.host = aHost || false;
     this.port = aPort || -1;
+    this.pairingPIN = aPairingPIN || -1;
     this.authSocket = aAuthSocket || false;
   }
 
@@ -234,15 +245,66 @@ var RemoteControlManager = (function() {
   // }
   let _sessions = {};
 
-  function _resetAll() {
-    // Disconnect all sockets
-    for (var tabId in _sessions) {
-      _sessions[tabId].authSocket.disconnect();
+  function _clearSession(aTabId) {
+    _debug('_clearSession: ' + aTabId);
+
+    if (!_sessions[aTabId]) {
+      _debug('  no session for this tab');
+      return;
     }
 
-    // clear all sessions
-    _sessions = {};
+    // // Disconnect
+    // _sessions[aTabId].authSocket.disconnect();
+    //
+    // // Delete the session
+    // delete _sessions[aTabId];
+
+    // Close the tab:
+    //   _onTabClose will help us to disconnect and delete the session.
+    let window = GetRecentWindow();
+    let tab = window.BrowserApp.getTabForId(aTabId);
+    window.BrowserApp.closeTab(tab);
   }
+
+  // Observer to receive remote-control messages/commands
+  // from remote-control client page
+  let _messageObserver = {
+    observe: function (aSubject, aTopic, aData) {
+      _debug('_remoteControlObserver >> obsere: ' + aTopic);
+
+      switch(aTopic) {
+        case 'remote-control-message': {
+          let msg = JSON.parse(aData);
+
+          if (!_sessions[msg.tabId] || !_sessions[msg.tabId].authSocket) {
+            _debug('  There is no existing authSocket for this client');
+            return;
+          }
+
+          let authSocket = _sessions[msg.tabId].authSocket;
+          authSocket.sendCommand(msg.action, msg.detail);
+          break;
+        }
+
+        case 'pairing-pincode': {
+          let msg = JSON.parse(aData);
+          let session = _sessions[msg.tabId];
+
+          if (!session) {
+            _debug('  No existing session for this tab!');
+            return;
+          }
+
+          session.pairingPIN = msg.pincode;
+          _connect(msg.tabId);
+          break;
+        }
+
+        default:
+          break;
+      }
+    }
+  };
 
   // A listener that will be fired when tab is closed
   function _onTabClose(aEvent) {
@@ -256,18 +318,17 @@ var RemoteControlManager = (function() {
     let closedTab = window.BrowserApp.getTabForBrowser(browser);
 
     if (!_sessions[closedTab.id]) {
-      _debug('  The closed tab is not remote-control client page');
+      _debug('  The closed tab is not for the remote-control service');
       return;
     }
 
+    // Disconnect to TV if the connection is still inuse.
     let authSocket = _sessions[closedTab.id].authSocket;
 
-    if (!authSocket) {
-      _debug('  There is no existing authSocket for this client');
-      return;
+    if (authSocket) {
+      _debug('  Disconnect for this socket');
+      authSocket.disconnect();
     }
-
-    authSocket.disconnect();
 
     // Remove this session from _sessions
     delete _sessions[closedTab.id];
@@ -276,87 +337,83 @@ var RemoteControlManager = (function() {
     // TabClose event when all sessions are removed
     if (Object.keys(_sessions).length === 0 &&
         JSON.stringify(_sessions) === JSON.stringify({})) {
-      _debug('  Remove observer to receive remote-control messages');
+      _debug('  Remove observer to receive remote-control and pairing-pincode messages');
       Services.obs.removeObserver(_messageObserver, 'remote-control-message');
+      Services.obs.removeObserver(_messageObserver, 'pairing-pincode');
 
       _debug('  Remove listener to receive TabClose');
       window.BrowserApp.deck.removeEventListener("TabClose", _onTabClose, false);
     }
   }
 
-  // Observer to receive remote-control messages/commands
-  // from remote-control client page
-  let _messageObserver = {
-    observe: function (aSubject, aTopic, aData) {
-      _debug('_remoteControlObserver >> obsere: ' + aTopic);
-      if (aTopic != 'remote-control-message') {
-        return;
-      }
-
-      let msg = JSON.parse(aData);
-
-      let authSocket = _sessions[msg.tabId].authSocket;
-
-      if (!authSocket) {
-        _debug('  There is no existing authSocket for this client');
-        return;
-      }
-
-      authSocket.sendCommand(msg.action, msg.detail);
-    }
-  };
-
   // Start connecting to TV:
-  // If connection is successful, we will open a remote-control client page
-  // for users to operate. Otherwise, nothing happens.
-  // Connection will be disconnected once the client page tab
-  // or fennec is closed,
+  // We will open a page for users to enter the PIN code first.
+  // After entering the PIN code, we will try to build a connection to TV.
+  // If the authentication is passed, then the page will be re-directed to
+  // the remote-control client page. Otherwise, we will show error messages
+  // about authentication-failed or connection-failed.
   function start(aHost, aPort) {
     _debug('start: ' + aHost + ':' + aPort);
 
-    let authSocket;
+    let window = GetRecentWindow();
 
+    // Open a PIN page for user
+    let tab = window.BrowserApp.addTab(kRemoteControlPairingPINURL);
+
+    // Store the TLS session information
+    _sessions[tab.id] = new Session(aHost, aPort);
+
+    // Add observer and listener to receive pairing-pincode,
+    // remote-control messages and TabClose event
+    // when the first session is built
+    if (Object.keys(_sessions).length == 1) {
+      _debug('  Add observer to receive remote-control and pairing-pincode messages');
+      Services.obs.addObserver(_messageObserver, 'remote-control-message', false);
+      Services.obs.addObserver(_messageObserver, 'pairing-pincode', false);
+
+      _debug('  Add listener to receive TabClose');
+      window.BrowserApp.deck.addEventListener("TabClose", _onTabClose, false);
+    }
+  }
+
+  // This function will be fired after receiving pairing PIN code
+  function _connect(aTabId) {
+    _debug('_connect: ' + aTabId);
+    let session = _sessions[aTabId];
     // Get a client certificate first(server might need it)
     Certificate.getOrCreate()
     // then connect to server
     .then(function(aCert) {
-
-      // Store all TLS session information
-      authSocket = new AuthSocket();
-
-      return authSocket.connect({
-        host: aHost,
-        port: aPort,
+      // Show sent message
+      ShowMessage(_getString('service.request.send'), true);
+      // Set a AuthSocket to this session
+      session.authSocket = new AuthSocket();
+      // Start connecting to TV
+      return session.authSocket.connect({
+        host: session.host,
+        port: session.port,
         authenticator: new (Authenticators.get().Client)(),
         cert: aCert,
-        PIN: 1234,
+        PIN: session.pairingPIN,
       });
     })
-    // then use remote-control client to operate TV
-    .then(function(aTransport) {
-      debug('== Connect Successfully ==');
-
+    .then(function onSuccess() {
+      // Re-direct the pairing pin code page to remote-controller page
+      _debug('Re-directing URL to remote-controller page......');
       let window = GetRecentWindow();
-
-      // Load the remote control client page into tab
-      let tab = window.BrowserApp.addTab(kRemoteControlUIURL);
-
-      // Store the TLS session information
-      _sessions[tab.id] = new Session(aHost, aPort, authSocket);
-
-      // Add observer and listener to receive remote-control messages and
-      // TabClose event when the first session is built
-      if (Object.keys(_sessions).length == 1) {
-        _debug('  Add observer to receive remote-control messages');
-        Services.obs.addObserver(_messageObserver, 'remote-control-message', false);
-
-        _debug('  Add listener to receive TabClose');
-        window.BrowserApp.deck.addEventListener("TabClose", _onTabClose, false);
-      }
-    })
+      window.BrowserApp.loadURI(kRemoteControlUIURL, window.BrowserApp.tabs[aTabId].browser);
+    }/*, function onFailed() {
+      // Show error message
+      ShowMessage(_getString('service.request.fail'), true);
+      // Clear the this failed session
+      _clearSession(aTabId);
+    }*/)
     .catch(function(aError) {
-      debug(aError);
-      _resetAll();
+      _debug(aError);
+      // // Show error message
+      ShowMessage(_getString('service.request.fail'), true);
+      // Clear the this failed session
+      _clearSession(aTabId);
     });
   }
 
@@ -903,7 +960,7 @@ function loadIntoWindow(window) {
   // For Debug: Add a button in menu to do force-discovery
   gDiscoveryMenuId = window.NativeWindow.menu.add("Search Devices", null, function() { discoveryDevices(window); });
   // For Debug: Add a button in menu to do socket-connecting
-  gSocketMenuId = window.NativeWindow.menu.add("Socket Connect", null, function() { RemoteControlManager.start("192.168.1.104", 8080); });
+  gSocketMenuId = window.NativeWindow.menu.add("Socket Connect", null, function() { RemoteControlManager.start("192.168.1.111", 8080); });
   // For Debug: Add a button in menu to do window.PresentationRequest(URL).start()
   gStartRequestMenuId = window.NativeWindow.menu.add("Start Request", null, function() { startRequest(window); });
 
