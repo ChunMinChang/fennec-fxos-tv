@@ -28,6 +28,8 @@ var Socket = function() {
   let _input,
       _output;
 
+  let _serverCert;
+
   let _messageReceiver;
 
   function _debug(aMsg) {
@@ -215,12 +217,11 @@ var Socket = function() {
 
             function overwrite() {
               _debug('_overwriteServerCertificate >> overwrite');
-              let serverCert = aTransport.securityInfo.QueryInterface(Ci.nsISSLStatusProvider).SSLStatus.serverCert;
-              // console.log(serverCert);
+              _serverCert = aTransport.securityInfo.QueryInterface(Ci.nsISSLStatusProvider).SSLStatus.serverCert;
 
               // Overwrite server's certificate if the certificate is wrong.
               // This will always happens in first connection.
-              _storeCertOverride(serverCert, _host, _port);
+              _storeCertOverride(_serverCert, _host, _port);
 
               // Close the invalid connection
               disconnect();
@@ -470,5 +471,8 @@ var Socket = function() {
     sendMessage: sendMessage,
     // receiveMessage: receiveMessage,
     setMessageReceiver: setMessageReceiver,
+    get serverCert() {
+      return _serverCert;
+    },
   };
 };
