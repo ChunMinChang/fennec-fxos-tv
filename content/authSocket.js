@@ -5,6 +5,9 @@ var AuthSocket = function() {
   // TLS socket
   let _socket = new Socket();
 
+  // TLS Server's fingerprint
+  let _tlsServerFingerprint;
+
   // J-PAKE module
   let _jpake = new JPAKE();
 
@@ -13,7 +16,15 @@ var AuthSocket = function() {
 
   // After first authenticating, server will give us a ID.
   // This will help us to do further noninitial authentications.
-  let _serverAssignedID;
+  // let _serverAssignedID;
+
+  // The PIN code will show on TV after round 1.
+  // If we connect to TV before, then PIN code is set to be AES,
+  // so there is no need to enter PIN code again.
+  let _PIN;
+
+  // Save those data from server at JPAKE-round1 before we get the pin code
+  let _serverRound1Data = {};
 
   // An extra information for authentication at the final step of J-PAKE
   // This string must be same as the server side(FxOS TV)
@@ -80,6 +91,16 @@ var AuthSocket = function() {
     }
   }
 
+  function _saveDataBeforeEnteringPIN(aPeerID, aGx3, aZkp_x3, aGx4, aZkp_x4) {
+    _serverRound1Data.peerID = aPeerID;
+
+    _serverRound1Data.gx3 = aGx3;
+    _serverRound1Data.zkp_x3 = aZkp_x3;
+
+    _serverRound1Data.gx4 = aGx4;
+    _serverRound1Data.zkp_x4 = aZkp_x4;
+  }
+
   function _authenticate(aMsg) {
     _debug('_authenticate');
 
@@ -96,10 +117,10 @@ var AuthSocket = function() {
           return;
         }
 
-        if (aMsg.detail > 1 && !_serverAssignedID) {
-          _debug('No assigned ID from server after first authentication!');
-          return;
-        }
+        // if (aMsg.detail > 1 && !_serverAssignedID) {
+        //   _debug('No assigned ID from server after first authentication!');
+        //   return;
+        // }
 
         // The current state should be ROUND1
         _authState = AUTH_STATE.ROUND1;
@@ -123,17 +144,13 @@ var AuthSocket = function() {
         break;
 
       case 'jpake_server_1':
-
         // Check the authentication state
         if (_authState != AUTH_STATE.ROUND1) {
           _debug('the authentication state should be: ROUND1');
           return;
         }
 
-        // The current state should be ROUND2
-        _authState = AUTH_STATE.ROUND2;
-
-        // Compute the Round 2 data and send it to TV
+        // Temporarily save those data from server before we get PIN code
         let gx3 = aMsg.detail.gx1;
         let zkp_x3 = aMsg.detail.zkp_x1;
 
@@ -142,21 +159,13 @@ var AuthSocket = function() {
 
         let peerID = zkp_x3.id;
 
-        let round2Data = _jpake.round2(peerID,
-                                       gx3, zkp_x3.gr, zkp_x3.b,
-                                       gx4, zkp_x4.gr, zkp_x4.b);
+        _saveDataBeforeEnteringPIN(peerID, gx3, zkp_x3, gx4, zkp_x4);
 
-        return _sendAuthentication('jpake_client_2', {
-          A: round2Data.A.value,
-          zkp_A: { gr: round2Data.zkp_A.v.value,
-                    b: round2Data.zkp_A.r.value,
-                   id: _signerID },
-        });
+        _debug('==> Waiting for PIN code .....');
 
         break;
 
       case 'jpake_server_2':
-
         // Check the authentication state
         if (_authState != AUTH_STATE.ROUND2) {
           _debug('the authentication state should be: ROUND2');
@@ -223,7 +232,9 @@ var AuthSocket = function() {
           // The twice-hashed AES key is supposed to be same
           // as the server's signature
           if (twiceHashAESKey != serverSignature) {
+            _debug('-------------------------------');
             _debug('serverSignature is wrong :(');
+            _debug('-------------------------------');
 
             // Fire the callback to notify that the authentication failed
             _afterAuthenticatingCallback(false);
@@ -254,10 +265,13 @@ var AuthSocket = function() {
         // The current state should be FINISH
         _authState = AUTH_STATE.FINISH;
 
-        // Get the assigned client ID by server
-        _serverAssignedID = aMsg.detail.id;
-
+        _debug('-------------------------------');
         _debug('Pass the authentication :)');
+        _debug('-------------------------------');
+
+        // Get the assigned client ID by server
+        // _serverAssignedID = aMsg.detail.id;
+        _debug('assigned client ID: ' + aMsg.detail.id);
 
         // Fire the callback to notify that the authentication is passed
         _afterAuthenticatingCallback(true);
@@ -269,45 +283,26 @@ var AuthSocket = function() {
     }
   }
 
-  // function connect(aSettings) {
-  //   _debug('connect');
-  //
-  //   // Set PIN code to J-PAKE module
-  //   _jpake.PIN = aSettings.PIN;
-  //
-  //   _socket.connect(aSettings)
-  //   // Request handshake
-  //   .then(function() {
-  //     // Set a listener to continuously receive the messages
-  //     _socket.setMessageReceiver(_messageReceiver);
-  //
-  //     // The current state should be REQEST_HANDSHAKE
-  //     _authState = AUTH_STATE.REQEST_HANDSHAKE;
-  //
-  //     // Send HANDSHAKE request to TV
-  //     _sendAuthentication('request_handshake',
-  //                         (_serverAssignedID) ? { id: _serverAssignedID } : null);
-  //   });
-  // }
-
   function connect(aSettings) {
     _debug('connect');
-
-    // Set PIN code to J-PAKE module
-    _jpake.PIN = aSettings.PIN;
 
     _socket.connect(aSettings)
     // Request handshake
     .then(function(aTransport) {
+      _debug('Finish connection! Start authentication!');
+
       // Set a listener to continuously receive the messages
       _socket.setMessageReceiver(_messageReceiver);
 
       // The current state should be REQEST_HANDSHAKE
       _authState = AUTH_STATE.REQEST_HANDSHAKE;
 
+      // // Send HANDSHAKE request to TV
+      // _sendAuthentication('request_handshake',
+      //                     (_serverAssignedID) ? { id: _serverAssignedID } : null);
+
       // Send HANDSHAKE request to TV
-      _sendAuthentication('request_handshake',
-                          (_serverAssignedID) ? { id: _serverAssignedID } : null);
+      _sendAuthentication('request_handshake');
     });
 
     return new Promise(function(aResolve, aReject) {
@@ -330,9 +325,53 @@ var AuthSocket = function() {
     _socket.sendMessage('command', aAction, aDetail);
   }
 
+  function enterPIN(aPIN) {
+    _debug('enterPIN: ' + aPIN);
+
+    // Check the authentication state
+    if (_authState != AUTH_STATE.ROUND1) {
+      _debug('Call at wrong state! the authentication state should be: ROUND1');
+      return;
+    }
+
+    // The current state should be ROUND2
+    _authState = AUTH_STATE.ROUND2;
+
+    // Save the pairing PIN code
+    _PIN = aPIN;
+
+    // Synthesize a stronger PIN from pairing pincode
+    // and the first twelve characters of the server's fingerprint
+    let fingerprint = _socket.serverCert.sha256Fingerprint;
+    _debug('server finderprint: ' + fingerprint);
+    let synthesizedPIN = aPIN + fingerprint.slice(0, 12);
+    _debug('synthesizedPIN: ' + synthesizedPIN);
+
+    // Compute the Round 2 data and send it to TV
+    let peerID = _serverRound1Data.peerID;
+
+    let gx3 = _serverRound1Data.gx3;
+    let zkp_x3 = _serverRound1Data.zkp_x3;
+
+    let gx4 = _serverRound1Data.gx4;
+    let zkp_x4 = _serverRound1Data.zkp_x4;
+
+    let round2Data = _jpake.round2(peerID, synthesizedPIN,
+                                   gx3, zkp_x3.gr, zkp_x3.b,
+                                   gx4, zkp_x4.gr, zkp_x4.b);
+
+    return _sendAuthentication('jpake_client_2', {
+      A: round2Data.A.value,
+      zkp_A: { gr: round2Data.zkp_A.v.value,
+                b: round2Data.zkp_A.r.value,
+               id: _signerID },
+    });
+  }
+
   return {
     connect: connect,
     disconnect: disconnect,
     sendCommand: sendCommand,
+    enterPIN: enterPIN,
   };
 };

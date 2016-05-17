@@ -232,10 +232,9 @@ var RemoteControlManager = (function() {
   }
 
   // Store the TLS session information
-  function Session(aHost, aPort, aPairingPIN, aAuthSocket) {
+  function Session(aHost, aPort, aAuthSocket) {
     this.host = aHost || false;
     this.port = aPort || -1;
-    this.pairingPIN = aPairingPIN || -1;
     this.authSocket = aAuthSocket || false;
   }
 
@@ -288,15 +287,15 @@ var RemoteControlManager = (function() {
 
         case 'pairing-pincode': {
           let msg = JSON.parse(aData);
-          let session = _sessions[msg.tabId];
 
-          if (!session) {
-            _debug('  No existing session for this tab!');
+          if (!_sessions[msg.tabId] || !_sessions[msg.tabId].authSocket) {
+            _debug('  There is no existing authSocket for this client');
             return;
           }
 
-          session.pairingPIN = msg.pincode;
-          _connect(msg.tabId);
+          let authSocket = _sessions[msg.tabId].authSocket;
+
+          authSocket.enterPIN(msg.pincode);
           break;
         }
 
@@ -347,73 +346,73 @@ var RemoteControlManager = (function() {
   }
 
   // Start connecting to TV:
+  // After connection to TV via TLS channel, we will run J-PAKE to authenticate.
   // We will open a page for users to enter the PIN code first.
-  // After entering the PIN code, we will try to build a connection to TV.
+  // server will show PIN code after it receives our round 1 data of J-PAKE.
+  // Users should enter the PIN code shown on TV, and we will use it to
+  // compute the round 2 data of J-PAKE.
+  //
   // If the authentication is passed, then the page will be re-directed to
-  // the remote-control client page. Otherwise, we will show error messages
-  // about authentication-failed or connection-failed.
+  // the remote-control client page. Otherwise, we will close the pin-code page
+  // and show the error messages.
   function start(aHost, aPort) {
     _debug('start: ' + aHost + ':' + aPort);
 
-    let window = GetRecentWindow();
+    let authSocket;
+    let tab;
 
-    // Open a PIN page for user
-    let tab = window.BrowserApp.addTab(kRemoteControlPairingPINURL);
-
-    // Store the TLS session information
-    _sessions[tab.id] = new Session(aHost, aPort);
-
-    // Add observer and listener to receive pairing-pincode,
-    // remote-control messages and TabClose event
-    // when the first session is built
-    if (Object.keys(_sessions).length == 1) {
-      _debug('  Add observer to receive remote-control and pairing-pincode messages');
-      Services.obs.addObserver(_messageObserver, 'remote-control-message', false);
-      Services.obs.addObserver(_messageObserver, 'pairing-pincode', false);
-
-      _debug('  Add listener to receive TabClose');
-      window.BrowserApp.deck.addEventListener("TabClose", _onTabClose, false);
-    }
-  }
-
-  // This function will be fired after receiving pairing PIN code
-  function _connect(aTabId) {
-    _debug('_connect: ' + aTabId);
-    let session = _sessions[aTabId];
     // Get a client certificate first(server might need it)
     Certificate.getOrCreate()
     // then connect to server
     .then(function(aCert) {
-      // Show sent message
+
+      // Create a AuthSocket
+      authSocket = new AuthSocket();
+
+      // Open a PIN code page
+      let window = GetRecentWindow();
+      tab = window.BrowserApp.addTab(kRemoteControlPairingPINURL);
+      _debug('  Open tab: ' + tab.id);
+
+      // Store all the session information
+      _sessions[tab.id] = new Session(aHost, aPort, authSocket);
+
+      // Add observer and listener to receive pairing-pincode,
+      // remote-control messages and TabClose event
+      // when the first session is built
+      if (Object.keys(_sessions).length == 1) {
+        _debug('  Add observer to receive remote-control and pairing-pincode messages');
+        Services.obs.addObserver(_messageObserver, 'remote-control-message', false);
+        Services.obs.addObserver(_messageObserver, 'pairing-pincode', false);
+
+        _debug('  Add listener to receive TabClose');
+        window.BrowserApp.deck.addEventListener("TabClose", _onTabClose, false);
+      }
+
+      // Show message: request sent
       ShowMessage(_getString('service.request.send'), true);
-      // Set a AuthSocket to this session
-      session.authSocket = new AuthSocket();
-      // Start connecting to TV
-      return session.authSocket.connect({
-        host: session.host,
-        port: session.port,
+
+      // Try to connect TV
+      return authSocket.connect({
+        host: aHost,
+        port: aPort,
         authenticator: new (Authenticators.get().Client)(),
         cert: aCert,
-        PIN: session.pairingPIN,
       });
     })
-    .then(function onSuccess() {
+    .then(function() {
       // Re-direct the pairing pin code page to remote-controller page
-      _debug('Re-directing URL to remote-controller page......');
+      _debug('Re-directing URL of tab ' + tab.id + ' to remote-controller page......');
+      console.log(tab);
       let window = GetRecentWindow();
-      window.BrowserApp.loadURI(kRemoteControlUIURL, window.BrowserApp.tabs[aTabId].browser);
-    }/*, function onFailed() {
+      window.BrowserApp.loadURI(kRemoteControlUIURL, tab.browser);
+    })
+    .catch(function(aError) {
+      _debug(aError);
       // Show error message
       ShowMessage(_getString('service.request.fail'), true);
       // Clear the this failed session
-      _clearSession(aTabId);
-    }*/)
-    .catch(function(aError) {
-      _debug(aError);
-      // // Show error message
-      ShowMessage(_getString('service.request.fail'), true);
-      // Clear the this failed session
-      _clearSession(aTabId);
+      _clearSession(tab.id);
     });
   }
 
