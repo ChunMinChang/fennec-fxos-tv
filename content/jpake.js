@@ -62,20 +62,15 @@ var JPAKE = function(aSignerID) {
              zkp_x2: _zkp_x2 };
   }
 
-  function round2(aPeerID, aGX3, aGV3, aR3, aGX4, aGV4, aR4) {
+  function round2(aPeerID, aPIN, aGX3, aGV3, aR3, aGX4, aGV4, aR4) {
     _debug('round2');
-
-    if (!_PIN) {
-      _debug('no PIN was set!');
-      return false;
-    }
 
     if (!_signerID) {
       _debug('no SignerID was set!');
       return false;
     }
 
-    if (!(aPeerID &&
+    if (!(aPeerID && aPIN &&
           aGX3 && aGV3 && aR3 &&
           aGX4 && aGV4 && aR4)) {
       _debug('wrong paremeters!');
@@ -83,6 +78,7 @@ var JPAKE = function(aSignerID) {
     }
 
     _peerID = aPeerID;
+    _PIN = aPIN;
 
     _gx3 = aGX3;
     _zkp_x3 = new ZeroKnowledgeProof(aPeerID, aGV3, aR3);
@@ -126,8 +122,6 @@ var JPAKE = function(aSignerID) {
   }
 
   return {
-    get PIN() { return _PIN; },
-    set PIN(aPIN) { _PIN = aPIN; },
     round1: round1,
     round2: round2,
     final: final,
