@@ -5,23 +5,24 @@ var AuthSocket = function() {
   // TLS socket
   let _socket = new Socket();
 
-  // TLS Server's fingerprint
-  let _tlsServerFingerprint;
-
   // J-PAKE module
   let _jpake = new JPAKE();
 
   // The signerID for J-PAKE
   let _signerID = 'client';
 
-  // After first authenticating, server will give us a ID.
-  // This will help us to do further noninitial authentications.
-  // let _serverAssignedID;
+  // TV will give an assigned id for the device after first connection.
+  // If we connect to TV before, then this should be set.
+  let _assignedID;
 
-  // The PIN code will show on TV after round 1.
-  // If we connect to TV before, then PIN code is set to be AES,
-  // so there is no need to enter PIN code again.
+  // The PIN code will show on TV after Tv receives round 1 data of J-PAKE.
+  // If we connect to TV before, then second time used PIN will set to AES,
+  // so there is no need for user to enter PIN code again.
   let _PIN;
+
+  // If we have both _assignedID and _PIN, then it's not the first time.
+  // Otherwise, it's the first time.
+  let _isFirstConnection = true;
 
   // Save those data from server at JPAKE-round1 before we get the pin code
   let _serverRound1Data = {};
@@ -78,6 +79,19 @@ var AuthSocket = function() {
     return bytes.buffer;
   }
 
+  // Use the last 25 characters of server's fingerprint as server's id
+  function _getServerIDFromFingerprint(aFingerprint) {
+    return aFingerprint.slice(-26);
+  }
+
+  // Synthesize PIN code from original one
+  function _synthesizePIN(aPIN) {
+    // Mix with the first twelve characters of the server's fingerprint
+    let fingerprint = _socket.serverCert.sha256Fingerprint;
+    let synthesizedPIN = aPIN + fingerprint.slice(0, 12);
+    return synthesizedPIN;
+  }
+
   function _sendAuthentication(aAction, aDetail) {
     _debug('_sendAuthentication');
     return _socket.sendMessage('auth', aAction, aDetail);
@@ -117,19 +131,23 @@ var AuthSocket = function() {
           return;
         }
 
-        // if (aMsg.detail > 1 && !_serverAssignedID) {
-        //   _debug('No assigned ID from server after first authentication!');
-        //   return;
-        // }
-
-        // The current state should be ROUND1
-        _authState = AUTH_STATE.ROUND1;
+        // Check whether or not the connection is first
+        if (aMsg.detail > 1 && _isFirstConnection) {
+          // Reset the state
+          _authState = AUTH_STATE.IDLE;
+          return;
+        }
 
         _debug((aMsg.detail == 1) ?
                  'this is the first time' : 'this is not the first time' );
 
         // Compute the Round 1 data and send it to TV
         let round1Data = _jpake.round1(_signerID);
+
+        // The current state should be ROUND1
+        _authState = AUTH_STATE.ROUND1;
+
+        // Send round 1 data to server
         return _sendAuthentication('jpake_client_1', {
           gx1: round1Data.gx1.value,
           zkp_x1: { gr: round1Data.zkp_x1.v.value,
@@ -161,7 +179,20 @@ var AuthSocket = function() {
 
         _saveDataBeforeEnteringPIN(peerID, gx3, zkp_x3, gx4, zkp_x4);
 
-        _debug('==> Waiting for PIN code .....');
+        // Stop when we are in first connection.
+        // We need to wait for users to enter the pairing pin code.
+        if (_isFirstConnection) {
+          _debug('==> Waiting for PIN code .....');
+          // When enterPIN is called, the pin code will be set and
+          // the computed results of J-PAKE round 2 will be sent to TV.
+          return;
+        }
+
+        // Compute the results of J-PAKE round 2 and send the results
+        // to TV directly if we connect to this TV before when we already
+        // have a PIN
+        _debug('==> Enter the second-time PIN code: ' + _PIN);
+        enterPIN(_PIN);
 
         break;
 
@@ -172,15 +203,17 @@ var AuthSocket = function() {
           return;
         }
 
-        // The current state should be FINAL
-        _authState = AUTH_STATE.FINAL;
-
         // Compute the final data and send it to TV
         let B = aMsg.detail.A;
         let zkp_B = aMsg.detail.zkp_A;
 
         let finalData = _jpake.final(B, zkp_B.gr, zkp_B.b, _kHkdfInfo);
 
+        // The current state should be FINAL
+        _authState = AUTH_STATE.FINAL;
+
+        // Save the AES key, it will be used to generate a client signature
+        // and the second-time pairing pin code.
         _AESKey = finalData.AES.value;
 
         // Import the HMAC key
@@ -236,6 +269,9 @@ var AuthSocket = function() {
             _debug('serverSignature is wrong :(');
             _debug('-------------------------------');
 
+            // Reset the state
+            _authState = AUTH_STATE.IDLE;
+
             // Fire the callback to notify that the authentication failed
             _afterAuthenticatingCallback(false);
             return;
@@ -269,12 +305,21 @@ var AuthSocket = function() {
         _debug('Pass the authentication :)');
         _debug('-------------------------------');
 
+        // If it's not the first time, then just resolve without returning
+        // any server-client pair information
+        if (!_isFirstConnection) {
+          _afterAuthenticatingCallback(true);
+          return;
+        }
+
+        // Otherwise, if it's first time, then resolve with returning
+        // the server-client pair information
+
         // Get the assigned client ID by server
-        // _serverAssignedID = aMsg.detail.id;
         _debug('assigned client ID: ' + aMsg.detail.id);
 
         // Fire the callback to notify that the authentication is passed
-        _afterAuthenticatingCallback(true);
+        _afterAuthenticatingCallback(true, aMsg.detail.id);
 
         break;
 
@@ -283,7 +328,7 @@ var AuthSocket = function() {
     }
   }
 
-  function connect(aSettings) {
+  function connect(aSettings, aServerClientPairs) {
     _debug('connect');
 
     _socket.connect(aSettings)
@@ -291,24 +336,66 @@ var AuthSocket = function() {
     .then(function(aTransport) {
       _debug('Finish connection! Start authentication!');
 
+      // Check whether or not we have an assined client id for this server
+      let fingerprint = _socket.serverCert.sha256Fingerprint;
+      let serverId = _getServerIDFromFingerprint(fingerprint);
+
+      if (aServerClientPairs && aServerClientPairs[serverId]) {
+        _assignedID = aServerClientPairs[serverId].client;
+        _debug('assigned id: ' + _assignedID);
+        _PIN = aServerClientPairs[serverId].pin;
+        _debug('paired PIN: ' + _PIN);
+        // _assignedID && _PIN && (_isFirstConnection = false);
+      }
+
+      if (_assignedID && _PIN) {
+        _debug('It is not the first time connection!')
+        _isFirstConnection = false;
+      }
+
       // Set a listener to continuously receive the messages
       _socket.setMessageReceiver(_messageReceiver);
 
       // The current state should be REQEST_HANDSHAKE
       _authState = AUTH_STATE.REQEST_HANDSHAKE;
 
-      // // Send HANDSHAKE request to TV
-      // _sendAuthentication('request_handshake',
-      //                     (_serverAssignedID) ? { id: _serverAssignedID } : null);
-
       // Send HANDSHAKE request to TV
-      _sendAuthentication('request_handshake');
+      (_isFirstConnection) ?
+        _sendAuthentication('request_handshake') :
+        _sendAuthentication('request_handshake', { id : _assignedID });
     });
 
     return new Promise(function(aResolve, aReject) {
-      function afterAuthentication(aResult) {
+      function afterAuthentication(aResult, aServerAssignedID) {
         _debug('afterAuthentication: ' + aResult);
-        (aResult) ? aResolve() : aReject();
+
+        if (!aResult) {
+          aReject();
+          return;
+        }
+
+        // Return error if we don't have a server assigned id in
+        // first time connection.
+        if (_isFirstConnection && !aServerAssignedID) {
+          aReject('no server assigned id');
+          return;
+        }
+
+        // Resolve with returning server-client pair information:
+        let fingerprint = _socket.serverCert.sha256Fingerprint;
+
+        // we need to update the pin every time use new AES key
+        let pair = {
+          server: _getServerIDFromFingerprint(fingerprint),
+          pin: _AESKey.slice(0, 4),
+        };
+
+        // update a server assigned client id if it needs
+        if (aServerAssignedID) {
+          pair.client = aServerAssignedID;
+        }
+
+        aResolve(pair);
       }
 
       _afterAuthenticatingCallback = afterAuthentication;
@@ -340,12 +427,7 @@ var AuthSocket = function() {
     // Save the pairing PIN code
     _PIN = aPIN;
 
-    // Synthesize a stronger PIN from pairing pincode
-    // and the first twelve characters of the server's fingerprint
-    let fingerprint = _socket.serverCert.sha256Fingerprint;
-    _debug('server finderprint: ' + fingerprint);
-    let synthesizedPIN = aPIN + fingerprint.slice(0, 12);
-    _debug('synthesizedPIN: ' + synthesizedPIN);
+    let synthesizedPIN = _synthesizePIN(aPIN);
 
     // Compute the Round 2 data and send it to TV
     let peerID = _serverRound1Data.peerID;

@@ -244,6 +244,19 @@ var RemoteControlManager = (function() {
   // }
   let _sessions = {};
 
+  // _serverClientPairs = {
+  //   server1 id: {
+  //     client id: server1 assigned client id,
+  //     PIN: the AES base 64 signature from last time,
+  //   }
+  //   server2 id: {
+  //     client id: server2 assigned client id,
+  //     PIN: the AES base 64 signature from last time,
+  //   }
+  //   ...
+  // }
+  let _serverClientPairs = {};
+
   function _clearSession(aTabId) {
     _debug('_clearSession: ' + aTabId);
 
@@ -398,14 +411,25 @@ var RemoteControlManager = (function() {
         port: aPort,
         authenticator: new (Authenticators.get().Client)(),
         cert: aCert,
-      });
+      }, _serverClientPairs);
     })
-    .then(function() {
+    .then(function(aPairInfo) { // returns { serverId: assigned clientId }
       // Re-direct the pairing pin code page to remote-controller page
       _debug('Re-directing URL of tab ' + tab.id + ' to remote-controller page......');
-      console.log(tab);
       let window = GetRecentWindow();
       window.BrowserApp.loadURI(kRemoteControlUIURL, tab.browser);
+
+      // Save the server-client id pair if it doesn't exist
+      if (!_serverClientPairs[aPairInfo.server]) {
+        _serverClientPairs[aPairInfo.server] = {
+          client: aPairInfo.client,
+          pin: aPairInfo.pin,
+        };
+      // Otherwise, update the pin code
+      } else {
+        _serverClientPairs[aPairInfo.server].pin = aPairInfo.pin;
+      }
+
     })
     .catch(function(aError) {
       _debug(aError);
