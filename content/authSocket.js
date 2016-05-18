@@ -15,16 +15,19 @@ var AuthSocket = function() {
   // If we connect to TV before, then this should be set.
   let _assignedID;
 
-  // The PIN code will show on TV after Tv receives round 1 data of J-PAKE.
-  // If we connect to TV before, then second time used PIN will set to AES,
+  // The PIN code will show on TV after TV receives round 1 data of J-PAKE
+  // if we are in the first connection. On the other hand,
+  // if we connect to TV before, then second time used PIN will set to AES,
   // so there is no need for user to enter PIN code again.
   let _PIN;
 
   // If we have both _assignedID and _PIN, then it's not the first time.
-  // Otherwise, it's the first time.
+  // Otherwise, it's the first time. Thus,
+  // _isFirstConnection = !(_assignedID && _PIN) = !_assignedID || !_PIN
   let _isFirstConnection = true;
 
-  // Save those data from server at JPAKE-round1 before we get the pin code
+  // Save those data temporarily from server at JPAKE-round1
+  // before we get the pin code
   let _serverRound1Data = {};
 
   // An extra information for authentication at the final step of J-PAKE
