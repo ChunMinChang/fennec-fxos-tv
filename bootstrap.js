@@ -7,12 +7,12 @@
  *                                 ┌ PresentationConnectionManager
  *           ┌ PresentationManager ┤
  *           │                     └ PresentationDeviceManager
- *   Window ─┤                                ↑
- *           │                                │ Call
+ *   Window ─┤                                │
+ *           │                                │
  *           └ UIActionManager                │
- *                 ↑                          │
+ *                 │                          │ Call
  *                 │ Call                     │
- *                 │                          │
+ *                 ↓                          ↓
  *     RemoteControlManager          PresentationDevices
  *            │                               │
  *            └────┬──────────────────────────┘
@@ -204,7 +204,6 @@ XPCOMUtils.defineLazyGetter(this, "AuthSocket", function() {
 // is located under 'content/remote-control-client/'.
 // Dependence:
 //   GetRecentWindow
-
 // The remote-control client PIN page
 const kRemoteControlPairingPINURL = 'chrome://fxostv/content/remote-control-client/pairing.html';
 // The remote-control client page
