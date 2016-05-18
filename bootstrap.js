@@ -212,7 +212,7 @@ const kRemoteControlUIURL = 'chrome://fxostv/content/remote-control-client/clien
 
 // Remote Control Manager module
 // -----------------------------
-// The description is in the begining of bootstrap.js.
+// The description is in the beginning of bootstrap.js.
 var gSocketMenuId = null;
 
 var RemoteControlManager = (function() {
@@ -451,7 +451,7 @@ var RemoteControlManager = (function() {
  */
 // PresentationDevices module
 // -----------------------------
-// The description is in the begining of bootstrap.js.
+// The description is in the beginning of bootstrap.js.
 XPCOMUtils.defineLazyGetter(this, "PresentationDevices", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationDevices.js", sandbox);
@@ -460,7 +460,7 @@ XPCOMUtils.defineLazyGetter(this, "PresentationDevices", function() {
 
 // PresentationDeviceManager module
 // -----------------------------
-// The description is in the begining of bootstrap.js.
+// The description is in the beginning of bootstrap.js.
 // Dependence:
 //   Components // for using Cc, Ci
 //   presentationDevices.js
@@ -472,7 +472,7 @@ XPCOMUtils.defineLazyGetter(this, "PresentationDeviceManager", function() {
 
 // PresentationConnectionManager module
 // -----------------------------
-// The description is in the begining of bootstrap.js.
+// The description is in the beginning of bootstrap.js.
 XPCOMUtils.defineLazyGetter(this, "PresentationConnectionManager", function() {
   let sandbox = {};
   Services.scriptloader.loadSubScript("chrome://fxostv/content/presentationConnectionManager.js", sandbox);
@@ -481,7 +481,7 @@ XPCOMUtils.defineLazyGetter(this, "PresentationConnectionManager", function() {
 
 // PresentationManager module
 // -----------------------------
-// The description is in the begining of bootstrap.js.
+// The description is in the beginning of bootstrap.js.
 // Dependence:
 //   presentationConnectionManager.js
 //   presentationDeviceManager.js
@@ -549,7 +549,7 @@ XPCOMUtils.defineLazyGetter(this, "PageActionManager", function() {
 
 // UIActionManager module
 // -----------------------------
-// The description is in the begining of bootstrap.js.
+// The description is in the beginning of bootstrap.js.
 // Dependence:
 //   PageActionManager.js
 //   PresentationManager
