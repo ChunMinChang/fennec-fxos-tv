@@ -5,9 +5,6 @@ var AuthSocket = function() {
   // TLS socket
   let _socket = new Socket();
 
-  // the tab paired with this socket
-  let _tabId;
-
   // J-PAKE module
   let _jpake = new JPAKE();
 
@@ -195,7 +192,7 @@ var AuthSocket = function() {
           _debug('==> Waiting for PIN code .....');
 
           // Fire the callback if it exists
-          _needPINNotifier && _needPINNotifier(_tabId);
+          _needPINNotifier && _needPINNotifier();
 
           // When enterPIN is called, the pin code will be set and
           // we will resume the authentication and compute
@@ -343,10 +340,8 @@ var AuthSocket = function() {
     }
   }
 
-  function connect(aSettings, aServerClientPairs, aTabId) {
+  function connect(aSettings, aServerClientPairs) {
     _debug('connect');
-
-    _tabId = aTabId;
 
     _socket.connect(aSettings)
     // Request handshake
@@ -399,7 +394,6 @@ var AuthSocket = function() {
 
         // we need to update the pin every time use new AES key
         let pair = {
-          tabId: _tabId,
           server: _getServerIDFromFingerprint(fingerprint),
           pin: _AESKey.slice(0, 4),
         };

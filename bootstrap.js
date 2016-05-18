@@ -358,18 +358,6 @@ var RemoteControlManager = (function() {
     }
   }
 
-  // // Callback that will be called if authSocket need a
-  // // pairing PIN code entered by users
-  // function onNeedPIN(aTabId) {
-  //   _debug('onNeedPIN');
-  //
-  //   // Re-direct the URL to the PIN code entering page
-  //   _debug('Re-directing URL of tab ' + aTabId + ' to pincode-entering page......');
-  //   let window = GetRecentWindow();
-  //   let tab = window.BrowserApp.getTabForId(aTabId);
-  //   window.BrowserApp.loadURI(kRemoteControlPairingPINURL, tab.browser);
-  // }
-
   // Start connecting to TV:
   // After connection to TV via TLS channel, we will run J-PAKE to authenticate.
   // We will open a page for users to enter the PIN code first.
@@ -393,16 +381,9 @@ var RemoteControlManager = (function() {
       let authSocket = new AuthSocket();
 
       // Set the callback that will be fired if it needs PIN code
-      function onNeedPIN(aTabId) {
+      function onNeedPIN() {
         _debug('onNeedPIN');
-
         // Re-direct the URL to the PIN code entering page
-
-        if (tab.id != aTabId) {
-          // Overwrite tab with the correct paired one
-          tab = window.BrowserApp.getTabForId(aTabId);
-        }
-
         _debug('Re-directing URL of tab ' + tab.id + ' to pincode-entering page......');
         let window = GetRecentWindow();
         window.BrowserApp.loadURI(kRemoteControlPairingPINURL, tab.browser);
@@ -449,12 +430,6 @@ var RemoteControlManager = (function() {
     })
     .then(function(aPairInfo) { // returns { serverId: assigned clientId }
       // Re-direct the URL to remote-controller page
-
-      if (tab.id != aPairInfo.tabId) {
-        // Overwrite tab with the correct paired one
-        tab = window.BrowserApp.getTabForId(aPairInfo.tabId);
-      }
-
       _debug('Re-directing URL of tab ' + tab.id + ' to remote-controller page......');
       let window = GetRecentWindow();
       window.BrowserApp.loadURI(kRemoteControlUIURL, tab.browser);
