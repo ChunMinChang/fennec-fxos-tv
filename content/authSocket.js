@@ -11,6 +11,14 @@ var AuthSocket = function() {
   // The signerID for J-PAKE
   let _signerID = 'client';
 
+  // An extra information for authentication at the final step of J-PAKE
+  // This string must be same as the server side(FxOS TV)
+  let _kHkdfInfo = 'AES_256_CBC-HMAC256';
+
+  // The computed AES and HMAC key from J-PAKE
+  let _AESKey;
+  let _HMACKey;
+
   // TV will give an assigned id for the device after first connection.
   // If we connect to TV before, then this should be set.
   let _assignedID;
@@ -30,16 +38,8 @@ var AuthSocket = function() {
   // before we get the pin code
   let _serverRound1Data = {};
 
-  // An extra information for authentication at the final step of J-PAKE
-  // This string must be same as the server side(FxOS TV)
-  let _kHkdfInfo = 'AES_256_CBC-HMAC256';
-
   // window here is used to get |window.crypto|
   let _window = GetRecentWindow();
-
-  // The computed AES and HMAC key from J-PAKE
-  let _AESKey;
-  let _HMACKey;
 
   // Label the state for authentication
   let AUTH_STATE = CreateEnum({
