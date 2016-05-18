@@ -36,11 +36,15 @@ Don't call objects defined in LazyGetter in global scope
 because they aren't loaded yet!
 
 ## Import order of modules
+- Every module labels their __dependence__,
+so you must make sure their order is right.
 - Many modules use ```Cc```, ```Cu```, ..etc, so these modules should be called
-after ```const { classes: Cc, interfaces: Ci, utils: Cu } = Components;```.
-- _socket.js_ will call ```let window = GetRecentWindow();```
-to use ```window.setTimeout```, so _socket.js_ must be loaded
-after the declaration of ```GetRecentWindow()```.
+after ```const { classes: Cc, interfaces: Ci, utils: Cu } = Components;```,
+or you can just put ```{ ... } = Components; ``` in the beginning
+of the _bootstrap.js_.
+- _socket.js_ and _authSocket.js_ will call ```let window = GetRecentWindow();```
+to use ```window.setTimeout``` and ```window.crypto```,
+so they must be loaded after the declaration of ```GetRecentWindow()```.
 
 # Future Risk Issues
 XPCOM calling/registration in add-on will be
