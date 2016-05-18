@@ -5,6 +5,9 @@ var AuthSocket = function() {
   // TLS socket
   let _socket = new Socket();
 
+  // the tab paired with this socket
+  let _tabId;
+
   // J-PAKE module
   let _jpake = new JPAKE();
 
@@ -37,6 +40,10 @@ var AuthSocket = function() {
   // Save those data temporarily from server at JPAKE-round1
   // before we get the pin code
   let _serverRound1Data = {};
+
+  // A callback that will be fired if we need to wait for the PIN code
+  // entered by users
+  let _needPINNotifier;
 
   // window here is used to get |window.crypto|
   let _window = GetRecentWindow();
@@ -182,12 +189,17 @@ var AuthSocket = function() {
 
         _saveDataBeforeEnteringPIN(peerID, gx3, zkp_x3, gx4, zkp_x4);
 
-        // Stop when we are in first connection.
-        // We need to wait for users to enter the pairing pin code.
+        // Suspend authentication for waiting the pairing PIN code
+        // entered by users when we are in first connection.
         if (_isFirstConnection) {
           _debug('==> Waiting for PIN code .....');
+
+          // Fire the callback if it exists
+          _needPINNotifier && _needPINNotifier(_tabId);
+
           // When enterPIN is called, the pin code will be set and
-          // the computed results of J-PAKE round 2 will be sent to TV.
+          // we will resume the authentication and compute
+          // the results of J-PAKE round 2 to send to TV.
           return;
         }
 
@@ -331,8 +343,10 @@ var AuthSocket = function() {
     }
   }
 
-  function connect(aSettings, aServerClientPairs) {
+  function connect(aSettings, aServerClientPairs, aTabId) {
     _debug('connect');
+
+    _tabId = aTabId;
 
     _socket.connect(aSettings)
     // Request handshake
@@ -348,12 +362,8 @@ var AuthSocket = function() {
         _debug('assigned id: ' + _assignedID);
         _PIN = aServerClientPairs[serverId].pin;
         _debug('paired PIN: ' + _PIN);
-        // _assignedID && _PIN && (_isFirstConnection = false);
-      }
-
-      if (_assignedID && _PIN) {
-        _debug('It is not the first time connection!')
-        _isFirstConnection = false;
+        _assignedID && _PIN && (_isFirstConnection = false);
+        _debug('first time connection? ' + _isFirstConnection)
       }
 
       // Set a listener to continuously receive the messages
@@ -389,6 +399,7 @@ var AuthSocket = function() {
 
         // we need to update the pin every time use new AES key
         let pair = {
+          tabId: _tabId,
           server: _getServerIDFromFingerprint(fingerprint),
           pin: _AESKey.slice(0, 4),
         };
@@ -458,5 +469,8 @@ var AuthSocket = function() {
     disconnect: disconnect,
     sendCommand: sendCommand,
     enterPIN: enterPIN,
+    set needPINNotifier(aNotifier) {
+      (typeof aNotifier === 'function') && (_needPINNotifier = aNotifier);
+    }
   };
 };

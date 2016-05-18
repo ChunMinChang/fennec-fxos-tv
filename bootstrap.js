@@ -358,6 +358,18 @@ var RemoteControlManager = (function() {
     }
   }
 
+  // // Callback that will be called if authSocket need a
+  // // pairing PIN code entered by users
+  // function onNeedPIN(aTabId) {
+  //   _debug('onNeedPIN');
+  //
+  //   // Re-direct the URL to the PIN code entering page
+  //   _debug('Re-directing URL of tab ' + aTabId + ' to pincode-entering page......');
+  //   let window = GetRecentWindow();
+  //   let tab = window.BrowserApp.getTabForId(aTabId);
+  //   window.BrowserApp.loadURI(kRemoteControlPairingPINURL, tab.browser);
+  // }
+
   // Start connecting to TV:
   // After connection to TV via TLS channel, we will run J-PAKE to authenticate.
   // We will open a page for users to enter the PIN code first.
@@ -371,20 +383,42 @@ var RemoteControlManager = (function() {
   function start(aHost, aPort) {
     _debug('start: ' + aHost + ':' + aPort);
 
-    let authSocket;
     let tab;
 
     // Get a client certificate first(server might need it)
     Certificate.getOrCreate()
     // then connect to server
     .then(function(aCert) {
-
       // Create a AuthSocket
-      authSocket = new AuthSocket();
+      let authSocket = new AuthSocket();
 
-      // Open a PIN code page
+      // Set the callback that will be fired if it needs PIN code
+      function onNeedPIN(aTabId) {
+        _debug('onNeedPIN');
+
+        // Re-direct the URL to the PIN code entering page
+
+        if (tab.id != aTabId) {
+          // Overwrite tab with the correct paired one
+          tab = window.BrowserApp.getTabForId(aTabId);
+        }
+
+        _debug('Re-directing URL of tab ' + tab.id + ' to pincode-entering page......');
+        let window = GetRecentWindow();
+        window.BrowserApp.loadURI(kRemoteControlPairingPINURL, tab.browser);
+      }
+      authSocket.needPINNotifier = onNeedPIN;
+
+      // Open a loading page first because we don't know whether or not
+      // we need to enter the pairing pin code.
+      // If it's the first-time connection, then we need to enter the pin
+      // to finish the first-time authentication, so we will re-direct the
+      // URL to the pincode-entering page.
+      // Ohterwise, the authentication can be finished automatically, so we can
+      // re-direct URL to remote-control client page directly.
+      let loadingPageURL = 'about:blank';
       let window = GetRecentWindow();
-      tab = window.BrowserApp.addTab(kRemoteControlPairingPINURL);
+      tab = window.BrowserApp.addTab(loadingPageURL);
       _debug('  Open tab: ' + tab.id);
 
       // Store all the session information
@@ -411,10 +445,16 @@ var RemoteControlManager = (function() {
         port: aPort,
         authenticator: new (Authenticators.get().Client)(),
         cert: aCert,
-      }, _serverClientPairs);
+      }, _serverClientPairs, tab.id);
     })
     .then(function(aPairInfo) { // returns { serverId: assigned clientId }
-      // Re-direct the pairing pin code page to remote-controller page
+      // Re-direct the URL to remote-controller page
+
+      if (tab.id != aPairInfo.tabId) {
+        // Overwrite tab with the correct paired one
+        tab = window.BrowserApp.getTabForId(aPairInfo.tabId);
+      }
+
       _debug('Re-directing URL of tab ' + tab.id + ' to remote-controller page......');
       let window = GetRecentWindow();
       window.BrowserApp.loadURI(kRemoteControlUIURL, tab.browser);
@@ -425,11 +465,10 @@ var RemoteControlManager = (function() {
           client: aPairInfo.client,
           pin: aPairInfo.pin,
         };
-      // Otherwise, update the pin code
+      // Otherwise, just update the pin code for the next time
       } else {
         _serverClientPairs[aPairInfo.server].pin = aPairInfo.pin;
       }
-
     })
     .catch(function(aError) {
       _debug(aError);
