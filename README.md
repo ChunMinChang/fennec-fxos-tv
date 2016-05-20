@@ -30,6 +30,10 @@ in [<mozilla-central>/mobile/android/app/mobile.js][mobileJS_link]
 $ ./rm_files
 ```
 
+# J-PAKE over TLS
+Please read the [my book][https://www.gitbook.com/book/chunminchang/j-pake-over-tls/]
+about this protocol.
+
 # Notes
 ## LazyGetter
 Don't call objects defined in LazyGetter in global scope
@@ -53,3 +57,7 @@ so this add-on may need to be refactored with new style to meet the new policy.
 
 [mobileJS_link]: https://dxr.mozilla.org/mozilla-central/source/mobile/android/app/mobile.js#194  "mobile.js"
 [xpcom_deprecated]: https://blog.mozilla.org/addons/2015/08/21/the-future-of-developing-firefox-add-ons/ "xpcom deprecated"
+
+# Pairing Firefox OS TV
+https://developer.mozilla.org/en-US/docs/Mozilla/Firefox_OS_for_TV
+https://wiki.mozilla.org/TV_2.6
