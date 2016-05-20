@@ -31,8 +31,7 @@ $ ./rm_files
 ```
 
 # J-PAKE over TLS
-Please read the [my book][https://www.gitbook.com/book/chunminchang/j-pake-over-tls/]
-about this protocol.
+Please read the [my book][jpake] about this to get more detail.
 
 # Notes
 ## LazyGetter
@@ -61,3 +60,5 @@ so this add-on may need to be refactored with new style to meet the new policy.
 # Pairing Firefox OS TV
 https://developer.mozilla.org/en-US/docs/Mozilla/Firefox_OS_for_TV
 https://wiki.mozilla.org/TV_2.6
+
+[jpake]: https://www.gitbook.com/book/chunminchang/j-pake-over-tls/ "J-PAKE over TLS"
