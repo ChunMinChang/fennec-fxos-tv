@@ -218,7 +218,7 @@ var Socket = function() {
             function overwrite() {
               _debug('_overwriteServerCertificate >> overwrite');
               _serverCert = aTransport.securityInfo.QueryInterface(Ci.nsISSLStatusProvider).SSLStatus.serverCert;
-
+              //console.log(_serverCert.sha256Fingerprint);
               // Overwrite server's certificate if the certificate is wrong.
               // This will always happens in first connection.
               _storeCertOverride(_serverCert, _host, _port);

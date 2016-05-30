@@ -58,7 +58,7 @@ so this add-on may need to be refactored with new style to meet the new policy.
 [xpcom_deprecated]: https://blog.mozilla.org/addons/2015/08/21/the-future-of-developing-firefox-add-ons/ "xpcom deprecated"
 
 # Pairing Firefox OS TV
-https://developer.mozilla.org/en-US/docs/Mozilla/Firefox_OS_for_TV
-https://wiki.mozilla.org/TV_2.6
+- https://developer.mozilla.org/en-US/docs/Mozilla/Firefox_OS_for_TV
+- https://wiki.mozilla.org/TV_2.6
 
 [jpake]: https://www.gitbook.com/book/chunminchang/j-pake-over-tls/ "J-PAKE over TLS"
