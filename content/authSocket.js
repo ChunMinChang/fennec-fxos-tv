@@ -130,6 +130,14 @@ var AuthSocket = function() {
       return;
     }
 
+    // Error handling
+    if (aMsg.error && aMsg.error == 'PIN expire') {
+      _debug('!!!! Error: ' + aMsg.error);
+      _afterAuthenticatingCallback(false, null, 'pin-expired');
+      return;
+    }
+
+    // Action
     switch(aMsg.action) {
       case 'response_handshake':
         // Check the authentication state
@@ -284,8 +292,10 @@ var AuthSocket = function() {
             // Reset the state
             _authState = AUTH_STATE.IDLE;
 
-            // Fire the callback to notify that the authentication failed
-            _afterAuthenticatingCallback(false);
+            // Fire the callback to notify that the authentication failed.
+            // If the PIN is correct, the server's signature should be valid.
+            // => if server's signature is invalid, then the PIN is wrong.
+            _afterAuthenticatingCallback(false, null, 'wrong-pin');
             return;
           }
 
@@ -374,11 +384,12 @@ var AuthSocket = function() {
     });
 
     return new Promise(function(aResolve, aReject) {
-      function afterAuthentication(aResult, aServerAssignedID) {
+      function afterAuthentication(aResult, aServerAssignedID, aError) {
         _debug('afterAuthentication: ' + aResult);
 
         if (!aResult) {
-          aReject();
+          _debug('  error: ' + aError);
+          aReject(aError);
           return;
         }
 

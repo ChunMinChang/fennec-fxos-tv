@@ -18,6 +18,48 @@
     });
 
     btnSubmit.disabled = false;
+
+    // This will be fired if the PIN code authentication is failed
+    var onerror = function(reason) {
+
+      function errorHandling(message) {
+        pinCodeInput.empty();
+        btnSubmit.disabled = false;
+        showMessage(message, true);
+      }
+
+      let type;
+
+      switch(reason) {
+        case 'wrong-pin':
+          type = 'wrong-pin';
+          break;
+        case 'pin-expired':
+          type = 'pin-code-expired-message';
+          break;
+        default:
+          document.l10n.formatValue('connect-error', { status: String(reason) })
+                       .then(errorHandling);
+          return;
+      }
+
+      document.l10n.formatValue(type).then(errorHandling);
+    }
+
+    // This will be fired after the PIN code is authenticated
+    var onsuccess = function() {
+      document.l10n.formatValue('connect-success').then(function(value) {
+        // Show successful message to users
+        showMessage(value);
+        // re-direct url to remote-controller page
+        setTimeout(function() {
+          window.location = 'client.html'
+        }, 1000);
+      });
+    }
+
+    addObserverForPINResults(onsuccess, onerror);
+
     btnSubmit.addEventListener('click', function(evt) {
       var pincode = pinCodeInput.getCodes();
       if (pincode === '') {
@@ -27,8 +69,38 @@
 
       btnSubmit.disabled = true;
 
+      // Send PIN code to boostrap.js and wait for the results
       exports.sendPINCode(pincode);
     });
+  }
+
+  function addObserverForPINResults(onsuccess, onerror) {
+    // Observer for waiting the PIN code results
+    let _messageObserver = {
+      observe: function (aSubject, aTopic, aData) {
+        if (aTopic != 'pin-result') {
+            return;
+        }
+
+        // Remove the observer itself
+        Services.obs.removeObserver(_messageObserver, 'pin-result');
+
+        // Parse the results message
+        let msg = JSON.parse(aData);
+
+        // Notify that the pin code entered is successful
+        if (msg.valid) {
+          onsuccess();
+          return;
+        }
+
+        // Notify that the pin code entered have problems
+        onerror(msg.reason);
+      }
+    };
+
+    // Add an observer for receiving the results of entering pin code
+    Services.obs.addObserver(_messageObserver, 'pin-result', false);
   }
 
   function showMessage(message, isError) {

@@ -428,10 +428,13 @@ var RemoteControlManager = (function() {
       }, _serverClientPairs, tab.id);
     })
     .then(function(aPairInfo) { // returns { serverId: assigned clientId }
-      // Re-direct the URL to remote-controller page
-      _debug('Re-directing URL of tab ' + tab.id + ' to remote-controller page......');
-      let window = GetRecentWindow();
-      window.BrowserApp.loadURI(kRemoteControlUIURL, tab.browser);
+      // // Re-direct the URL to remote-controller page
+      // _debug('Re-directing URL of tab ' + tab.id + ' to remote-controller page......');
+      // let window = GetRecentWindow();
+      // window.BrowserApp.loadURI(kRemoteControlUIURL, tab.browser);
+
+      // Let PIN code page redirect to remote-controller page
+      _notifyPINPage({ valid : true });
 
       // Save the server-client id pair if it doesn't exist
       if (!_serverClientPairs[aPairInfo.server]) {
@@ -443,14 +446,32 @@ var RemoteControlManager = (function() {
       } else {
         _serverClientPairs[aPairInfo.server].pin = aPairInfo.pin;
       }
+    }, function(aReason) {
+      // Log connection failed message
+      _debug(aReason);
+
+      // Show error message on PIN code page if aReason is:
+      //   pin-expired  : PIN code is expired
+      //   wrong-pin    : PIN entered is wrong
+      if (aReason == 'pin-expired' || aReason == 'wrong-pin') {
+        _notifyPINPage({ valid : false, reason: aReason });
+      }
     })
     .catch(function(aError) {
+      // Log the error message
       _debug(aError);
-      // Show error message
+      // Show error message to user
       ShowMessage(_getString('service.request.fail'), true);
       // Clear the this failed session
       _clearSession(tab.id);
     });
+  }
+
+  function _notifyPINPage(aMsg) {
+    // Message to notify RemoteControlManager in bootstrap.js
+    _debug('_notifyPINPage');
+    let msg = JSON.stringify(aMsg);
+    Services.obs.notifyObservers(null, 'pin-result', msg);
   }
 
   return {
