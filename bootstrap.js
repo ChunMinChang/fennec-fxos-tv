@@ -279,6 +279,13 @@ var RemoteControlManager = (function() {
     window.BrowserApp.closeTab(tab);
   }
 
+  function _notifyPINPage(aMsg) {
+    // Message to notify RemoteControlManager in bootstrap.js
+    _debug('_notifyPINPage');
+    let msg = JSON.stringify(aMsg);
+    Services.obs.notifyObservers(null, 'pin-result', msg);
+  }
+
   // Observer to receive remote-control messages/commands
   // from remote-control client page
   let _messageObserver = {
@@ -517,13 +524,6 @@ var RemoteControlManager = (function() {
       // Clear the this failed session
       _clearSession(tab.id);
     });
-  }
-
-  function _notifyPINPage(aMsg) {
-    // Message to notify RemoteControlManager in bootstrap.js
-    _debug('_notifyPINPage');
-    let msg = JSON.stringify(aMsg);
-    Services.obs.notifyObservers(null, 'pin-result', msg);
   }
 
   return {
