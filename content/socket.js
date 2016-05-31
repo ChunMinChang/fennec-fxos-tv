@@ -22,7 +22,6 @@ var Socket = function() {
 
   let _host,
       _port,
-      _authenticator,
       _cert;
 
   let _input,
@@ -38,10 +37,9 @@ var Socket = function() {
 
   function _setOptions(aSettings) {
     _debug('_setOptions');
-    let { host, port, authenticator, cert } = aSettings;
+    let { host, port, cert } = aSettings;
     _host = host;
     _port = port;
-    _authenticator = authenticator;
     _cert = cert;
   }
 

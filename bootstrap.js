@@ -148,18 +148,6 @@ XPCOMUtils.defineLazyGetter(this, "Certificate", function() {
   return sandbox["Cert"];
 });
 
-// Authentication module
-// -----------------------------
-// To authenticate our TLS channel.
-// However, the client(the add-on itself) doesn't use it. (We should remove it)
-// Dependence:
-//   cert.js (Certificate module)
-XPCOMUtils.defineLazyGetter(this, "Authenticators", function() {
-  let sandbox = {};
-  Services.scriptloader.loadSubScript("chrome://fxostv/content/auth.js", sandbox);
-  return sandbox["Authenticators"];
-});
-
 // TLS Socket module
 // -----------------------------
 // To build a confidential TLS channel without authentication
@@ -346,7 +334,6 @@ var RemoteControlManager = (function() {
             authSocket.connect({
               host: _sessions[msg.tabId].host,
               port: _sessions[msg.tabId].port,
-              authenticator: new (Authenticators.get().Client)(),
               cert: aCert,
             }, _serverClientPairs, msg.tabId, true)
             .then(_onSuccess, _onFail);
@@ -511,7 +498,6 @@ var RemoteControlManager = (function() {
       return authSocket.connect({
         host: aHost,
         port: aPort,
-        authenticator: new (Authenticators.get().Client)(),
         cert: aCert,
       }, _serverClientPairs, tab.id);
     })
