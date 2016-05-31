@@ -27,11 +27,11 @@
         btnSubmit.disabled = false;
         showMessage(message, true);
 
-        // reconnect and reload the pin code page
+        // reconnect and reload the pin code page after 2 seconds
         setTimeout(function() {
           window.location.reload();
           exports.reconnect();
-        }, 3000);
+        }, 2000);
       }
 
       let type;
