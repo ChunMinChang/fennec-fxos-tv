@@ -62,6 +62,9 @@ var AuthSocket = function() {
   //   auth is true if authnication is passed. Otherwise, it's false.
   let _afterAuthenticatingCallback;
 
+  // the tab's id paired with this authSocket
+  let _tabId;
+
   function _debug(aMsg) {
     console.log('# [AuthSocket] ' + aMsg);
   }
@@ -364,7 +367,7 @@ var AuthSocket = function() {
     }
   }
 
-  function connect(aSettings, aServerClientPairs, aReconnect) {
+  function connect(aSettings, aServerClientPairs, aTabId, aReconnect) {
     _debug('connect');
 
     if (aReconnect) {
@@ -388,6 +391,8 @@ var AuthSocket = function() {
         _assignedID && _PIN && (_isFirstConnection = false);
         _debug('first time connection? ' + _isFirstConnection)
       }
+
+      _tabId = aTabId;
 
       // Set a listener to continuously receive the messages
       _socket.setMessageReceiver(_messageReceiver);
@@ -423,6 +428,7 @@ var AuthSocket = function() {
 
         // we need to update the pin every time use new AES key
         let pair = {
+          tabId: _tabId,
           server: _getServerIDFromFingerprint(fingerprint),
           pin: _AESKey.slice(0, 4),
         };

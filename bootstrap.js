@@ -208,6 +208,8 @@ XPCOMUtils.defineLazyGetter(this, "AuthSocket", function() {
 const kRemoteControlPairingPINURL = 'chrome://fxostv/content/remote-control-client/pairing.html';
 // The remote-control client page
 const kRemoteControlUIURL = 'chrome://fxostv/content/remote-control-client/client.html';
+// The loading page
+const kLoadingPageURL = 'about:blank';
 
 // Remote Control Manager module
 // -----------------------------
@@ -339,7 +341,7 @@ var RemoteControlManager = (function() {
               port: _sessions[msg.tabId].port,
               authenticator: new (Authenticators.get().Client)(),
               cert: aCert,
-            }, _serverClientPairs, true)
+            }, _serverClientPairs, msg.tabId, true)
             .then(_onSuccess, _onFail);
           });
 
@@ -397,8 +399,20 @@ var RemoteControlManager = (function() {
   function _onSuccess(aPairInfo) {
     _debug('_onSuccess');
 
-    // Let PIN code page redirect to remote-controller page
-    _notifyPINPage({ valid : true });
+    // If the page is still pin code page, then it means that
+    // the authentication is successful after PIN code is entered.
+    // This means that it is the first time connection.
+    // In this case, let PIN code page redirect to remote-controller page
+    // because it will also show some messages like 'connected successfully'.
+    let window = GetRecentWindow();
+    let tab = window.BrowserApp.getTabForId(aPairInfo.tabId);
+    if (tab.window.location == kRemoteControlPairingPINURL) {
+      _notifyPINPage({ valid : true });
+    // otherwise, we need to re-direct URL
+    // to remote-controller page by ourselves
+    } else {
+      tab.window.location = kRemoteControlUIURL;
+    }
 
     // Save the server-client id pair if it doesn't exist
     if (!_serverClientPairs[aPairInfo.server]) {
@@ -466,9 +480,8 @@ var RemoteControlManager = (function() {
       // URL to the pincode-entering page.
       // Ohterwise, the authentication can be finished automatically, so we can
       // re-direct URL to remote-control client page directly.
-      let loadingPageURL = 'about:blank';
       let window = GetRecentWindow();
-      tab = window.BrowserApp.addTab(loadingPageURL);
+      tab = window.BrowserApp.addTab(kLoadingPageURL);
       _debug('  Open tab: ' + tab.id);
 
       // Store all the session information
@@ -496,7 +509,7 @@ var RemoteControlManager = (function() {
         port: aPort,
         authenticator: new (Authenticators.get().Client)(),
         cert: aCert,
-      }, _serverClientPairs);
+      }, _serverClientPairs, tab.id);
     })
     .then(_onSuccess, _onFail)
     .catch(function(aError) {
