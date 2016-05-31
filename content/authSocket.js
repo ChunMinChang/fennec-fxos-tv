@@ -410,16 +410,22 @@ var AuthSocket = function() {
       function afterAuthentication(aResult, aServerAssignedID, aError) {
         _debug('afterAuthentication: ' + aResult);
 
+        let pair = {
+          tabId: _tabId,
+        };
+
         if (!aResult) {
           _debug('  error: ' + aError);
-          aReject(aError);
+          pair.error = aError;
+          aReject(pair);
           return;
         }
 
         // Return error if we don't have a server assigned id in
         // first time connection.
         if (_isFirstConnection && !aServerAssignedID) {
-          aReject('no server assigned id');
+          pair.error = 'no server assigned id';
+          aReject(pair);
           return;
         }
 
@@ -427,11 +433,8 @@ var AuthSocket = function() {
         let fingerprint = _socket.serverCert.sha256Fingerprint;
 
         // we need to update the pin every time use new AES key
-        let pair = {
-          tabId: _tabId,
-          server: _getServerIDFromFingerprint(fingerprint),
-          pin: _AESKey.slice(0, 4),
-        };
+        pair.server = _getServerIDFromFingerprint(fingerprint);
+        pair.pin = _AESKey.slice(0, 4);
 
         // update a server assigned client id if it needs
         if (aServerAssignedID) {

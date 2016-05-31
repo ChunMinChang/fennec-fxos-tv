@@ -421,14 +421,14 @@ var RemoteControlManager = (function() {
   }
 
   // This will be fired after the authentication is failed
-  function _onFail(aReason) {
-    _debug('_onFail: ' + aReason);
+  function _onFail(aResult) {
+    _debug('_onFail: ' + aResult.error);
 
     // Show error message on PIN code page if aReason is:
     //   pin-expired  : PIN code is expired
     //   wrong-pin    : PIN entered is wrong
-    if (aReason == 'pin-expired' || aReason == 'wrong-pin') {
-      _notifyPINPage({ valid : false, reason: aReason });
+    if (aResult.error == 'pin-expired' || aResult.error == 'wrong-pin') {
+      _notifyPINPage({ valid : false, reason: aResult.error });
     }
   }
 
