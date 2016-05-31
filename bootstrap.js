@@ -336,7 +336,7 @@ var RemoteControlManager = (function() {
               port: _sessions[msg.tabId].port,
               cert: aCert,
             }, _serverClientPairs, msg.tabId, true)
-            .then(_onSuccess, _onFail);
+            .then(_onSuccess, _onFailure);
           });
 
           break;
@@ -421,8 +421,8 @@ var RemoteControlManager = (function() {
   }
 
   // This will be fired after the authentication is failed
-  function _onFail(aResult) {
-    _debug('_onFail: ' + aResult.error);
+  function _onFailure(aResult) {
+    _debug('_onFailure: ' + aResult.error);
 
     // Show error message on PIN code page if aReason is:
     //   pin-expired  : PIN code is expired
@@ -501,7 +501,7 @@ var RemoteControlManager = (function() {
         cert: aCert,
       }, _serverClientPairs, tab.id);
     })
-    .then(_onSuccess, _onFail)
+    .then(_onSuccess, _onFailure)
     .catch(function(aError) {
       // Log the error message
       _debug(aError);
