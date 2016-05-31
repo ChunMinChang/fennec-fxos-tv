@@ -311,6 +311,41 @@ var RemoteControlManager = (function() {
           break;
         }
 
+        case 'reconnect': {
+          let msg = JSON.parse(aData);
+
+          if (!_sessions[msg.tabId] || !_sessions[msg.tabId].authSocket) {
+            _debug('  There is no existing authSocket for this client');
+            return;
+          }
+
+          let authSocket = _sessions[msg.tabId].authSocket;
+
+          // If the current url is PIN code page,
+          // then we don't need to re-direct url to itself again.
+          let window = GetRecentWindow();
+          let tab = window.BrowserApp.getTabForId(msg.tabId);
+          if (tab.window.location == kRemoteControlPairingPINURL) {
+            _debug('  no need to redirect to PIN code page again');
+            authSocket.needPINNotifier = null;
+          }
+
+          // Get a client certificate first(server might need it)
+          Certificate.getOrCreate()
+          // then connect to server
+          .then(function(aCert) {
+            authSocket.connect({
+              host: _sessions[msg.tabId].host,
+              port: _sessions[msg.tabId].port,
+              authenticator: new (Authenticators.get().Client)(),
+              cert: aCert,
+            }, _serverClientPairs, true)
+            .then(_onSuccess, _onFail);
+          });
+
+          break;
+        }
+
         default:
           break;
       }
@@ -351,9 +386,44 @@ var RemoteControlManager = (function() {
       _debug('  Remove observer to receive remote-control and pairing-pincode messages');
       Services.obs.removeObserver(_messageObserver, 'remote-control-message');
       Services.obs.removeObserver(_messageObserver, 'pairing-pincode');
+      Services.obs.removeObserver(_messageObserver, 'reconnect');
 
       _debug('  Remove listener to receive TabClose');
       window.BrowserApp.deck.removeEventListener("TabClose", _onTabClose, false);
+    }
+  }
+
+  // This will be fired after the authentication is successful
+  function _onSuccess(aPairInfo) {
+    _debug('_onSuccess');
+
+    // Let PIN code page redirect to remote-controller page
+    _notifyPINPage({ valid : true });
+
+    // Save the server-client id pair if it doesn't exist
+    if (!_serverClientPairs[aPairInfo.server]) {
+      _serverClientPairs[aPairInfo.server] = {
+        client: aPairInfo.client,
+        pin: aPairInfo.pin,
+      };
+    // Otherwise, just update the pin code for the next time
+    } else {
+      _serverClientPairs[aPairInfo.server].pin = aPairInfo.pin;
+    }
+  }
+
+  // This will be fired after the authentication is failed
+  function _onFail(aReason) {
+    _debug('_onFail');
+
+    // Log connection failed message
+    _debug(aReason);
+
+    // Show error message on PIN code page if aReason is:
+    //   pin-expired  : PIN code is expired
+    //   wrong-pin    : PIN entered is wrong
+    if (aReason == 'pin-expired' || aReason == 'wrong-pin') {
+      _notifyPINPage({ valid : false, reason: aReason });
     }
   }
 
@@ -411,6 +481,7 @@ var RemoteControlManager = (function() {
         _debug('  Add observer to receive remote-control and pairing-pincode messages');
         Services.obs.addObserver(_messageObserver, 'remote-control-message', false);
         Services.obs.addObserver(_messageObserver, 'pairing-pincode', false);
+        Services.obs.addObserver(_messageObserver, 'reconnect', false);
 
         _debug('  Add listener to receive TabClose');
         window.BrowserApp.deck.addEventListener("TabClose", _onTabClose, false);
@@ -425,38 +496,9 @@ var RemoteControlManager = (function() {
         port: aPort,
         authenticator: new (Authenticators.get().Client)(),
         cert: aCert,
-      }, _serverClientPairs, tab.id);
+      }, _serverClientPairs);
     })
-    .then(function(aPairInfo) { // returns { serverId: assigned clientId }
-      // // Re-direct the URL to remote-controller page
-      // _debug('Re-directing URL of tab ' + tab.id + ' to remote-controller page......');
-      // let window = GetRecentWindow();
-      // window.BrowserApp.loadURI(kRemoteControlUIURL, tab.browser);
-
-      // Let PIN code page redirect to remote-controller page
-      _notifyPINPage({ valid : true });
-
-      // Save the server-client id pair if it doesn't exist
-      if (!_serverClientPairs[aPairInfo.server]) {
-        _serverClientPairs[aPairInfo.server] = {
-          client: aPairInfo.client,
-          pin: aPairInfo.pin,
-        };
-      // Otherwise, just update the pin code for the next time
-      } else {
-        _serverClientPairs[aPairInfo.server].pin = aPairInfo.pin;
-      }
-    }, function(aReason) {
-      // Log connection failed message
-      _debug(aReason);
-
-      // Show error message on PIN code page if aReason is:
-      //   pin-expired  : PIN code is expired
-      //   wrong-pin    : PIN entered is wrong
-      if (aReason == 'pin-expired' || aReason == 'wrong-pin') {
-        _notifyPINPage({ valid : false, reason: aReason });
-      }
-    })
+    .then(_onSuccess, _onFail)
     .catch(function(aError) {
       // Log the error message
       _debug(aError);

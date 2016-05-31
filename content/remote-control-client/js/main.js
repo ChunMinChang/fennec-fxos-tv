@@ -64,6 +64,20 @@ Cu.import("resource://gre/modules/Services.jsm");
     Services.obs.notifyObservers(null, 'pairing-pincode', msg);
   };
 
+  exports.reconnect = function() {
+    // Get the tab id for this remote-control client page
+    let window = Services.wm.getMostRecentWindow("navigator:browser");
+    let tabId = window.BrowserApp.selectedTab.id;
+
+    // Message to notify RemoteControlManager in bootstrap.js
+    let data = {
+      tabId: tabId,
+      reconnect: true
+    }
+    let msg = JSON.stringify(data);
+    Services.obs.notifyObservers(null, 'reconnect', msg);
+  };
+
   exports.setCookie = function(key, value, expires, path) {
     var cookie = [];
     cookie.push(encodeURIComponent(String(key)) + '=' +

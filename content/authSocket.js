@@ -66,6 +66,20 @@ var AuthSocket = function() {
     console.log('# [AuthSocket] ' + aMsg);
   }
 
+  function _reset() {
+    _debug('_reset');
+    _jpake = new JPAKE();
+    _AESKey = null;
+    _HMACKey = null;
+    _assignedID = null;
+    _PIN = null;
+    _isFirstConnection = true;
+    _serverRound1Data = {};
+    _needPINNotifier = null;
+    _authState = AUTH_STATE.IDLE;
+    _afterAuthenticatingCallback = null;
+  }
+
   function _base64FromArrayBuffer(aArrayBuffer) {
     let binary = '';
     let bytes = new Uint8Array(aArrayBuffer);
@@ -350,8 +364,12 @@ var AuthSocket = function() {
     }
   }
 
-  function connect(aSettings, aServerClientPairs) {
+  function connect(aSettings, aServerClientPairs, aReconnect) {
     _debug('connect');
+
+    if (aReconnect) {
+      _reset();
+    }
 
     _socket.connect(aSettings)
     // Request handshake
