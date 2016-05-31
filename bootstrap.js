@@ -428,10 +428,7 @@ var RemoteControlManager = (function() {
 
   // This will be fired after the authentication is failed
   function _onFail(aReason) {
-    _debug('_onFail');
-
-    // Log connection failed message
-    _debug(aReason);
+    _debug('_onFail: ' + aReason);
 
     // Show error message on PIN code page if aReason is:
     //   pin-expired  : PIN code is expired
