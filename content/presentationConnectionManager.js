@@ -77,8 +77,10 @@ var PresentationConnectionManager = function() {
     return new Promise(function(aResolve, aReject) {
       let request = new aWindow.PresentationRequest(aUrl);
       request.startWithDevice(aTarget.id).then(function(aSession) {
-        if (!aSession.id || aSession.state != "connected") {
-          aReject('The session is wrong!');
+        if (!aSession.id ||
+            !(aSession.state == "connected" ||
+              aSession.state == "connecting")) {
+          aReject('The session id or session state is wrong!');
         }
         // Store the session
         _session = aSession;
