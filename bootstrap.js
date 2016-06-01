@@ -196,8 +196,10 @@ XPCOMUtils.defineLazyGetter(this, "AuthSocket", function() {
 const kRemoteControlPairingPINURL = 'chrome://fxostv/content/remote-control-client/pairing.html';
 // The remote-control client page
 const kRemoteControlUIURL = 'chrome://fxostv/content/remote-control-client/client.html';
-// The loading page
+// The loading page to wait for re-directing to other URL
 const kLoadingPageURL = 'about:blank';
+// The waiting time for watchdog
+const kWatchdogTimer = 20; // seconds
 
 // Remote Control Manager module
 // -----------------------------
@@ -331,6 +333,14 @@ var RemoteControlManager = (function() {
           Certificate.getOrCreate()
           // then connect to server
           .then(function(aCert) {
+
+            // Reset the watchdog
+            _removeWatchdog(msg.tabId);
+            _setWatchdog(msg.tabId);
+
+            // Show message to user for reconnecting
+            ShowMessage(_getString('service.request.reconnect'), true);
+
             authSocket.connect({
               host: _sessions[msg.tabId].host,
               port: _sessions[msg.tabId].port,
@@ -347,6 +357,49 @@ var RemoteControlManager = (function() {
       }
     }
   };
+
+  function _setWatchdog(aTabId, aTime) {
+    _debug('_setWatchdog: ' + aTabId);
+
+    if (!_sessions[aTabId]) {
+      _debug('  there is no session for this tab!');
+    }
+
+
+    let window = GetRecentWindow();
+
+    // if there is a used watchdog, clear it.
+    if (_sessions[aTabId].watchdog) {
+      window.clearTimeout(_sessions[aTabId].watchdog);
+    }
+
+    // Wait some time before releasing the watchdog.
+    // The watchdog will clear the session and close this tab
+    // if there is no server's response received in time.
+    function releaseDog() {
+      _debug('!!! Release the watchdog: ' + aTabId);
+
+      // Show message to user that we don't receive any response from server
+      ShowMessage(_getString('service.request.noresponse'), true);
+
+      _clearSession(aTabId);
+    }
+
+    _sessions[aTabId].watchdog = window.setTimeout(releaseDog,
+      ((aTime)? (aTime * 1000) : (kWatchdogTimer * 1000)));
+  }
+
+  function _removeWatchdog(aTabId) {
+    _debug('_removeWatchdog: ' + aTabId);
+
+    if (!_sessions[aTabId] || !_sessions[aTabId].watchdog) {
+      _debug('  there is no watchdog for this tab!');
+    }
+
+    // The watchdog will be removed when we get the responses from server.
+    let window = GetRecentWindow();
+    window.clearTimeout(_sessions[aTabId].watchdog);
+  }
 
   // A listener that will be fired when tab is closed
   function _onTabClose(aEvent) {
@@ -391,7 +444,10 @@ var RemoteControlManager = (function() {
 
   // This will be fired after the authentication is successful
   function _onSuccess(aPairInfo) {
-    _debug('_onSuccess');
+    _debug('_onSuccess: ' + aPairInfo.tabId);
+
+    // Remove the watchdog after we get the responses from server
+    _removeWatchdog(aPairInfo.tabId);
 
     // If the page is still pin code page, then it means that
     // the authentication is successful after PIN code is entered.
@@ -422,7 +478,10 @@ var RemoteControlManager = (function() {
 
   // This will be fired after the authentication is failed
   function _onFailure(aResult) {
-    _debug('_onFailure: ' + aResult.error);
+    _debug('_onFailure: ' + aResult.tabId + ',error: ' + aResult.error);
+
+    // Remove the watchdog after we get the responses from server
+    _removeWatchdog(aResult.tabId);
 
     // Show error message on PIN code page if aReason is:
     //   pin-expired  : PIN code is expired
@@ -457,6 +516,12 @@ var RemoteControlManager = (function() {
       // Set the callback that will be fired if it needs PIN code
       function onNeedPIN() {
         _debug('onNeedPIN');
+
+        // Remove the watchdog after we get the responses from server
+        _removeWatchdog(tab.id);
+        // Reset a watchdog to wait for the responses again
+        // _setWatchdog(tab.id, 5 * kWatchdogTimer);
+
         // Re-direct the URL to the PIN code entering page
         _debug('Re-directing URL of tab ' + tab.id + ' to pincode-entering page......');
         let window = GetRecentWindow();
@@ -493,6 +558,9 @@ var RemoteControlManager = (function() {
 
       // Show message: request sent
       ShowMessage(_getString('service.request.send'), true);
+
+      // Set a watchdog to wait for the server's response
+      _setWatchdog(tab.id);
 
       // Try to connect TV
       return authSocket.connect({

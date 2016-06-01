@@ -31,7 +31,7 @@
         setTimeout(function() {
           window.location.reload();
           exports.reconnect();
-        }, 2000);
+        }, 1000);
       }
 
       let type;
