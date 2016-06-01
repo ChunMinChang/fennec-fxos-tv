@@ -73,7 +73,7 @@ var PresentationConnectionManager = function() {
   }
 
   function start(aWindow, aUrl, aTarget) {
-    _debug('start');
+    _debug('start: ' + aUrl);
     return new Promise(function(aResolve, aReject) {
       let request = new aWindow.PresentationRequest(aUrl);
       request.startWithDevice(aTarget.id).then(function(aSession) {
