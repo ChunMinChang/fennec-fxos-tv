@@ -417,6 +417,9 @@ var RemoteControlManager = (function() {
       return;
     }
 
+    // Remove the watchdog for this tab
+    _removeWatchdog(closedTab.id);
+
     // Disconnect to TV if the connection is still inuse.
     let authSocket = _sessions[closedTab.id].authSocket;
 
@@ -556,8 +559,8 @@ var RemoteControlManager = (function() {
         window.BrowserApp.deck.addEventListener("TabClose", _onTabClose, false);
       }
 
-      // Show message: request sent
-      ShowMessage(_getString('service.request.send'), true);
+      // // Show message: request sent
+      // ShowMessage(_getString('service.request.send'), true);
 
       // Set a watchdog to wait for the server's response
       _setWatchdog(tab.id);
@@ -771,6 +774,12 @@ var UIActionManager = function() {
 
     let buttonIndex = 0;
     for (let i in devices) {
+
+      // Ignore the devices that doesn't provide any service
+      if (!devices[i].available()) {
+        continue;
+      }
+
       // Assume every device has a valid name
       menu.push({ label: devices[i].name, header: true });
       ++buttonIndex;
@@ -966,6 +975,9 @@ var UIActionManager = function() {
     aWindow.presentationManager.connectionManager.start(aWindow, currentURL, aTarget)
     // then launch remote-controll service
     .then(function(aResult) {
+      // Show message: request sent
+      ShowMessage(_getString('service.request.send'), true);
+
       _debug('Connect to ' + aTarget.remoteControlInfo.address +
              ':' + aTarget.remoteControlInfo.port);
 
@@ -974,6 +986,7 @@ var UIActionManager = function() {
                                  aTarget.remoteControlInfo.port);
     })
     .catch(function(aError) {
+      _debug(aError);
       // Show message: request fail
       ShowMessage(_getString('service.request.fail'), true);
     });
