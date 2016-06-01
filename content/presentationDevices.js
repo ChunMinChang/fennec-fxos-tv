@@ -22,9 +22,16 @@ var PresentationDevices = (function () {
     this.type = aDevice.type || 'unidentified';
     // Set initial function for searched presentation devices
     this.sendVideo = false;
-    this.sendPage = true;
+    this.sendPage = false;
     this.pinPage = false;
     this.remoteControlInfo = false;
+
+    this.available = function() {
+      return this.sendVideo ||
+             this.sendPage ||
+             this.pinPage ||
+             this.remoteControlInfo;
+    };
   }
 
   // To save all information of the presentation devices discovered

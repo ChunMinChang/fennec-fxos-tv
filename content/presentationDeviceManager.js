@@ -128,10 +128,7 @@ var PresentationDeviceManager = function() {
     _debug('_deviceAvailable');
     let devs = PresentationDevices.getList();
     for (let i in devs) {
-      if (devs[i].sendVideo ||
-          devs[i].sendPage ||
-          devs[i].pinPage ||
-          !!devs[i].remoteControlInfo) {
+      if (devs[i].available()) {
         return true;
       }
     }
