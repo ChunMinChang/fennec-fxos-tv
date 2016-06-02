@@ -891,6 +891,22 @@ var UIActionManager = function() {
 
   // Services
   // -------------------------------
+  // function _sendPage(aWindow, aTarget) {
+  //   _debug('_sendPage');
+  //   if (!aWindow.presentationManager ||
+  //       !aWindow.presentationManager.connectionManager) {
+  //     _debug('  >> there is no available PresentationConnectionManager');
+  //     return;
+  //   }
+  //
+  //   // Start connecting to TV
+  //   let currentURL = _getCurrentURL(aWindow);
+  //   aWindow.presentationManager.connectionManager.start(aWindow, currentURL, aTarget)
+  //   .catch(function(aError) {
+  //     // Show message: request fail
+  //     ShowMessage(_getString('service.request.fail'), true);
+  //   });
+  // }
   function _sendPage(aWindow, aTarget) {
     _debug('_sendPage');
     if (!aWindow.presentationManager ||
@@ -928,23 +944,6 @@ var UIActionManager = function() {
       ShowMessage(_getString('service.request.fail'), true);
     });
   }
-
-  // function _sendPage(aWindow, aTarget) {
-  //   _debug('_sendPage');
-  //   if (!aWindow.presentationManager ||
-  //       !aWindow.presentationManager.connectionManager) {
-  //     _debug('  >> there is no available PresentationConnectionManager');
-  //     return;
-  //   }
-  //
-  //   // Start connecting to TV
-  //   let currentURL = _getCurrentURL(aWindow);
-  //   aWindow.presentationManager.connectionManager.start(aWindow, currentURL, aTarget)
-  //   .catch(function(aError) {
-  //     // Show message: request fail
-  //     ShowMessage(_getString('service.request.fail'), true);
-  //   });
-  // }
 
   // function _remoteControl(aWindow, aTarget) {
   //   _debug('_remoteControl');
