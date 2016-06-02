@@ -336,10 +336,10 @@ var RemoteControlManager = (function() {
 
             // Reset the watchdog
             _removeWatchdog(msg.tabId);
-            _setWatchdog(msg.tabId);
+            _setWatchdog(msg.tabId, 4 * kWatchdogTimer);
 
             // Show message to user for reconnecting
-            ShowMessage(_getString('service.request.reconnect'), true);
+            // ShowMessage(_getString('service.request.reconnect'), true);
 
             authSocket.connect({
               host: _sessions[msg.tabId].host,
