@@ -7,7 +7,7 @@ var PresentationConnectionManager = function() {
   // Keep track the message's sequence
   let _seq = 0;
   // Detect whether or not the session is disconnected by ourselves
-  let _closeIsExpected = false;
+  let _disconnectionIsExpected = false;
   // Store listeners registering to receive messages
   let _listeners = [];
 
@@ -23,7 +23,7 @@ var PresentationConnectionManager = function() {
     _debug('_reset');
     _session = null;
     _seq = 0;
-    _closeIsExpected = false;
+    _disconnectionIsExpected = false;
     _clearAllListeners();
   }
 
@@ -60,15 +60,70 @@ var PresentationConnectionManager = function() {
       return;
     }
 
-    if (_session.state == "connected") {
-      _debug('Build session successfully!');
+    // if (_session.state != 'closed' &&
+    //     _session.state != 'terminated') {
+    //   return;
+    // }
+    //
+    // // If state is terminated or closed
+    // if (!_disconnectionIsExpected) {
+    //   _debug('Unexpectedly lose session!');
+    // }
+    //
+    // _reset();
+  }
+
+  function _onConnect(aEvent) {
+    _debug('_onConnect >> state: ' + _session.state);
+
+    if (!_session) {
+      _debug('there is no session!');
       return;
     }
 
-    // If state is terminated or closed
-    if (!_closeIsExpected) {
+    if (_session.state != 'connected') {
+      _debug('Session state is not connected!');
+      return;
+    }
+  }
+
+  function _onClose(aEvent) {
+    _debug('_onClose >> state: ' + _session.state);
+
+    if (!_session) {
+      _debug('there is no session!');
+      return;
+    }
+
+    if (_session.state != 'closed') {
+      _debug('Session state is not closed!');
+      return;
+    }
+
+    if (!_disconnectionIsExpected) {
       _debug('Unexpectedly lose session!');
     }
+
+    _reset();
+  }
+
+  function _onTerminate(aEvent) {
+    _debug('_onTerminate >> state: ' + _session.state);
+
+    if (!_session) {
+      _debug('there is no session!');
+      return;
+    }
+
+    if (_session.state != 'terminated') {
+      _debug('Session state is not terminated!');
+      return;
+    }
+
+    if (!_disconnectionIsExpected) {
+      _debug('Unexpectedly lose session!');
+    }
+
     _reset();
   }
 
@@ -77,16 +132,36 @@ var PresentationConnectionManager = function() {
     return new Promise(function(aResolve, aReject) {
       let request = new aWindow.PresentationRequest(aUrl);
       request.startWithDevice(aTarget.id).then(function(aSession) {
-        if (!aSession.id ||
-            !(aSession.state == "connected" ||
-              aSession.state == "connecting")) {
-          aReject('The session id or session state is wrong!');
+        if (!aSession.id) {
+          aReject('No id for this session!');
         }
-        // Store the session
-        _session = aSession;
-        _session.onmessage = _onMessage;
-        _session.onstatechange = _onStatechange;
-        aResolve();
+
+        _debug('state: ' + aSession.state);
+
+        function setSessionAndResolve() {
+          // Store the session
+          _session = aSession;
+          _session.onmessage = _onMessage;
+          _session.onstatechange = _onStatechange;
+          _session.onconnect = _onConnect;
+          _session.onclose = _onClose;
+          _session.onterminate = _onTerminate;
+          aResolve();
+        }
+
+        if (aSession.state == 'connected') {
+          setSessionAndResolve();
+          return;
+        } else if (aSession.state == 'connecting') {
+          aSession.onconnect = function() {
+            _debug('session.onconnect is called!');
+            setSessionAndResolve();
+          }
+          return;
+        }
+
+        aReject('The session state is wrong!');
+
       }).catch(function(aError) {
         aReject(aError);
       });
@@ -125,7 +200,7 @@ var PresentationConnectionManager = function() {
       return;
     }
     // Indicate that we want to end this session
-    _closeIsExpected = true;
+    _disconnectionIsExpected = true;
     // Terminate session
     _session.terminate();
   }
