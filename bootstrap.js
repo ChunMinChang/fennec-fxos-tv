@@ -197,7 +197,7 @@ const kRemoteControlPairingPINURL = 'chrome://fxostv/content/remote-control-clie
 // The remote-control client page
 const kRemoteControlUIURL = 'chrome://fxostv/content/remote-control-client/client.html';
 // The loading page to wait for re-directing to other URL
-const kLoadingPageURL = 'about:blank';
+const kLoadingPageURL = 'chrome://fxostv/content/remote-control-client/loading.html';
 // The waiting time for watchdog
 const kWatchdogTimer = 20; // seconds
 

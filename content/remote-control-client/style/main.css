@@ -29,6 +29,38 @@ body, section, input, div {
   border: 0;
 }
 
+/***********
+ * Loading *
+ ***********/
+
+ body.loading {
+   background-color: #353535;
+ }
+
+#loading-animation {
+  /*width: 50px;
+  height: 72px;
+  background-image: url("http://s.cdpn.io/79/sprite-steps.png");
+  animation: play .8s steps(10) infinite;*/
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  width: 80px;
+  height: 80px;
+  background-image: url("images/spinner_sprite_80.png");
+  animation: play 1.133s steps(33) infinite;
+}
+
+@keyframes play {
+   /*from { background-position:    0px; }
+     to { background-position: -500px; }*/
+  from { background-position:    0px; }
+    to { background-position: -2640px; }
+}
+
 /**********
  * Client *
  **********/
