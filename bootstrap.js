@@ -88,7 +88,6 @@ function discoveryDevices(win) {
 
     PresentationDevices.setList(devices);
     debug(PresentationDevices.getList());
-
   }, function(error) {
     debug(error);
   });
@@ -1170,6 +1169,11 @@ var UIActionManager = function() {
   return {
     init: init,
     uninit: uninit,
+    update: function() {
+      _debug('update');
+      let win = GetRecentWindow();
+      _updatePageAction(win);
+    },
   };
 };
 

@@ -39,6 +39,11 @@ var PresentationDeviceManager = function() {
         case _remoteControlServiceType:
           _debug('Find remote control service! port: ' + aServiceInfo.port);
           PresentationDevices.updateServices(aServiceInfo, PresentationDevices.service.remoteControl);
+
+          // Force window.UIActionManager to update the pageAction
+          let win = GetRecentWindow();
+          win.UIActionManager && win.UIActionManager.update();
+
           break;
         default:
           _debug('Can\'t find any service!');
