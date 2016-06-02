@@ -52,27 +52,6 @@ var PresentationConnectionManager = function() {
     });
   }
 
-  function _onStatechange(aEvent) {
-    _debug('_onStatechange >> state: ' + _session.state);
-
-    if (!_session) {
-      _debug('there is no session!');
-      return;
-    }
-
-    // if (_session.state != 'closed' &&
-    //     _session.state != 'terminated') {
-    //   return;
-    // }
-    //
-    // // If state is terminated or closed
-    // if (!_disconnectionIsExpected) {
-    //   _debug('Unexpectedly lose session!');
-    // }
-    //
-    // _reset();
-  }
-
   function _onConnect(aEvent) {
     _debug('_onConnect >> state: ' + _session.state);
 
@@ -142,7 +121,6 @@ var PresentationConnectionManager = function() {
           // Store the session
           _session = aSession;
           _session.onmessage = _onMessage;
-          _session.onstatechange = _onStatechange;
           _session.onconnect = _onConnect;
           _session.onclose = _onClose;
           _session.onterminate = _onTerminate;
