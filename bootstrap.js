@@ -891,44 +891,6 @@ var UIActionManager = function() {
 
   // Services
   // -------------------------------
-  // function _sendPage(aWindow, aTarget) {
-  //   _debug('_sendPage');
-  //   if (!aWindow.presentationManager ||
-  //       !aWindow.presentationManager.connectionManager) {
-  //     _debug('  >> there is no available PresentationConnectionManager');
-  //     return;
-  //   }
-  //
-  //   // Close the presentation session after receiving 'ack'
-  //   let listener = {
-  //     ack: function(aMessage, aEvent) {
-  //       _debug('terminate after receiving ack!');
-  //       let win = GetRecentWindow();
-  //       win.presentationManager.connectionManager.unregisterListener(this);
-  //       win.presentationManager.connectionManager.terminate();
-  //     },
-  //   }
-  //   aWindow.presentationManager.connectionManager.registerListener(listener);
-  //
-  //   // Start connecting to TV
-  //   let currentURL = _getCurrentURL(aWindow);
-  //   let appURL = 'app://notification-receiver.gaiamobile.org/index.html';
-  //   aWindow.presentationManager.connectionManager.start(aWindow, appURL, aTarget)
-  //   .then(function(aResult) {
-  //     // Show message: request sent
-  //     ShowMessage(_getString('service.request.send'), true);
-  //     // Request TV to show the page
-  //     aWindow.presentationManager.connectionManager
-  //     .sendCommand('view', {
-  //       'url': currentURL,
-  //       'timestamp': Date.now(),
-  //     });
-  //   }).catch(function(aError) {
-  //     // Show message: request fail
-  //     ShowMessage(_getString('service.request.fail'), true);
-  //   });
-  // }
-
   function _sendPage(aWindow, aTarget) {
     _debug('_sendPage');
     if (!aWindow.presentationManager ||
@@ -937,14 +899,52 @@ var UIActionManager = function() {
       return;
     }
 
+    // Close the presentation session after receiving 'ack'
+    let listener = {
+      ack: function(aMessage, aEvent) {
+        _debug('terminate after receiving ack!');
+        let win = GetRecentWindow();
+        win.presentationManager.connectionManager.unregisterListener(this);
+        win.presentationManager.connectionManager.terminate();
+      },
+    }
+    aWindow.presentationManager.connectionManager.registerListener(listener);
+
     // Start connecting to TV
     let currentURL = _getCurrentURL(aWindow);
-    aWindow.presentationManager.connectionManager.start(aWindow, currentURL, aTarget)
-    .catch(function(aError) {
+    let appURL = 'app://notification-receiver.gaiamobile.org/index.html';
+    aWindow.presentationManager.connectionManager.start(aWindow, appURL, aTarget)
+    .then(function(aResult) {
+      // Show message: request sent
+      ShowMessage(_getString('service.request.send'), true);
+      // Request TV to show the page
+      aWindow.presentationManager.connectionManager
+      .sendCommand('view', {
+        'url': currentURL,
+        'timestamp': Date.now(),
+      });
+    }).catch(function(aError) {
       // Show message: request fail
       ShowMessage(_getString('service.request.fail'), true);
     });
   }
+
+  // function _sendPage(aWindow, aTarget) {
+  //   _debug('_sendPage');
+  //   if (!aWindow.presentationManager ||
+  //       !aWindow.presentationManager.connectionManager) {
+  //     _debug('  >> there is no available PresentationConnectionManager');
+  //     return;
+  //   }
+  //
+  //   // Start connecting to TV
+  //   let currentURL = _getCurrentURL(aWindow);
+  //   aWindow.presentationManager.connectionManager.start(aWindow, currentURL, aTarget)
+  //   .catch(function(aError) {
+  //     // Show message: request fail
+  //     ShowMessage(_getString('service.request.fail'), true);
+  //   });
+  // }
 
   // function _remoteControl(aWindow, aTarget) {
   //   _debug('_remoteControl');
@@ -970,23 +970,43 @@ var UIActionManager = function() {
       return;
     }
 
-    // Send tab to TV first
-    let currentURL = _getCurrentURL(aWindow);
-    aWindow.presentationManager.connectionManager.start(aWindow, currentURL, aTarget)
-    // then launch remote-controll service
-    .then(function(aResult) {
-      // Show message: request sent
-      ShowMessage(_getString('service.request.send'), true);
-
+    function _launchService() {
+      _debug('_launchService');
       _debug('Connect to ' + aTarget.remoteControlInfo.address +
              ':' + aTarget.remoteControlInfo.port);
 
       // Connect to TV and remotely operate it on fennec
       RemoteControlManager.start(aTarget.remoteControlInfo.address,
                                  aTarget.remoteControlInfo.port);
-    })
-    .catch(function(aError) {
-      _debug(aError);
+    }
+
+    // Close the presentation session after receiving 'ack'
+    let listener = {
+      ack: function(aMessage, aEvent) {
+        _debug('terminate after receiving ack!');
+        let win = GetRecentWindow();
+        win.presentationManager.connectionManager.unregisterListener(this);
+        win.presentationManager.connectionManager.terminate();
+        // Launch remote control service
+        _launchService();
+      },
+    }
+    aWindow.presentationManager.connectionManager.registerListener(listener);
+
+    // Start connecting to TV
+    let currentURL = _getCurrentURL(aWindow);
+    let appURL = 'app://notification-receiver.gaiamobile.org/index.html';
+    aWindow.presentationManager.connectionManager.start(aWindow, appURL, aTarget)
+    .then(function(aResult) {
+      // Show message: request sent
+      ShowMessage(_getString('service.request.send'), true);
+      // Request TV to show the page
+      aWindow.presentationManager.connectionManager
+      .sendCommand('view', {
+        'url': currentURL,
+        'timestamp': Date.now(),
+      });
+    }).catch(function(aError) {
       // Show message: request fail
       ShowMessage(_getString('service.request.fail'), true);
     });
