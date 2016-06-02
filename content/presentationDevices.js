@@ -15,22 +15,24 @@ var PresentationDevices = (function () {
 
   // Containing presentation device's infomation
   function DeviceInfo(aDevice) {
-    // Notice that the |id| of presentation api device
-    // is the |host| of mdns service
-    this.id = aDevice.id || 'unidentified';
-    this.name = aDevice.name || 'unidentified';
-    this.type = aDevice.type || 'unidentified';
-    // Set initial function for searched presentation devices
-    this.sendVideo = false;
-    this.sendPage = false;
-    this.pinPage = false;
-    this.remoteControlInfo = false;
-
-    this.available = function() {
-      return this.sendVideo ||
-             this.sendPage ||
-             this.pinPage ||
-             this.remoteControlInfo;
+    return {
+      // Notice that the |id| of presentation api device
+      // is the |host| of mdns service
+      id: aDevice.id || 'unidentified',
+      name: aDevice.name || 'unidentified',
+      type: aDevice.type || 'unidentified',
+      // Set initial function for searched presentation devices
+      sendVideo: false,
+      sendPage: false,
+      pinPage: false,
+      remoteControlInfo: false,
+      // Return true if the device provide any service
+      get available() {
+        return this.sendVideo ||
+               this.sendPage ||
+               this.pinPage ||
+               this.remoteControlInfo;
+      },
     };
   }
 

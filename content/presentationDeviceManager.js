@@ -128,7 +128,7 @@ var PresentationDeviceManager = function() {
     _debug('_deviceAvailable');
     let devs = PresentationDevices.getList();
     for (let i in devs) {
-      if (devs[i].available()) {
+      if (devs[i].available) {
         return true;
       }
     }

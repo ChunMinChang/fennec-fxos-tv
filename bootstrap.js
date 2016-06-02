@@ -776,7 +776,7 @@ var UIActionManager = function() {
     for (let i in devices) {
 
       // Ignore the devices that doesn't provide any service
-      if (!devices[i].available()) {
+      if (!devices[i].available) {
         continue;
       }
 
