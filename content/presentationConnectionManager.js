@@ -52,58 +52,22 @@ var PresentationConnectionManager = function() {
     });
   }
 
-  function _onConnect(aEvent) {
-    _debug('_onConnect >> state: ' + _session.state);
+  function _onStatechange(aEvent) {
+    _debug('_onStatechange >> state: ' + _session.state);
 
     if (!_session) {
       _debug('there is no session!');
       return;
     }
 
-    if (_session.state != 'connected') {
-      _debug('Session state is not connected!');
-      return;
+    if (_session.state == 'closed' ||
+        _session.state == 'terminated') {
+      if (!_disconnectionIsExpected) {
+        _debug('Unexpectedly lose session!');
+      }
+
+      _reset();
     }
-  }
-
-  function _onClose(aEvent) {
-    _debug('_onClose >> state: ' + _session.state);
-
-    if (!_session) {
-      _debug('there is no session!');
-      return;
-    }
-
-    if (_session.state != 'closed') {
-      _debug('Session state is not closed!');
-      return;
-    }
-
-    if (!_disconnectionIsExpected) {
-      _debug('Unexpectedly lose session!');
-    }
-
-    _reset();
-  }
-
-  function _onTerminate(aEvent) {
-    _debug('_onTerminate >> state: ' + _session.state);
-
-    if (!_session) {
-      _debug('there is no session!');
-      return;
-    }
-
-    if (_session.state != 'terminated') {
-      _debug('Session state is not terminated!');
-      return;
-    }
-
-    if (!_disconnectionIsExpected) {
-      _debug('Unexpectedly lose session!');
-    }
-
-    _reset();
   }
 
   function start(aWindow, aUrl, aTarget) {
@@ -121,9 +85,9 @@ var PresentationConnectionManager = function() {
           // Store the session
           _session = aSession;
           _session.onmessage = _onMessage;
-          _session.onconnect = _onConnect;
-          _session.onclose = _onClose;
-          _session.onterminate = _onTerminate;
+          _session.onconnect = _onStatechange;
+          _session.onclose = _onStatechange;
+          _session.onterminate = _onStatechange;
           aResolve();
         }
 
