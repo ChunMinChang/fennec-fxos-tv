@@ -61,14 +61,33 @@ var PresentationConnectionManager = function() {
     Debugger.log('# PresentationConnectionManager._startSession');
     return new Promise(function(resolve, reject) {
       let presentationRequest = new window.PresentationRequest(url);
-      presentationRequest.startWithDevice(id).then(function(session){
-        if (session.id && session.state == "connected") {
+      presentationRequest.startWithDevice(id).then(function(session) {
+
+        function setSession() {
           _presentation.session = session;
           _presentation.session.onmessage = _presentationOnMessage;
           _presentation.session.onstatechange = _presentationOnStatechange;
+          // new state-change callbacks for presentation api
+          _presentation.session.onconnect = _presentationOnStatechange;
+          _presentation.session.onclose = _presentationOnStatechange;
+          _presentation.session.onterminate = _presentationOnStatechange;
+        }
+
+        if (!session.id) {
+          reject('no session.id!');
+          return;
+        }
+
+        if (session.state == 'connected') {
+          setSession();
           resolve();
+        } else if(session.state == 'connecting') {
+          session.onconnect = function() {
+            setSession();
+            resolve();
+          }
         } else {
-          reject('session.id or session.state is wrong!');
+          reject('session.state is wrong!');
         }
       }).catch(function(error) {
         reject(error);
