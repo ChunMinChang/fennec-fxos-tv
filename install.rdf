@@ -5,7 +5,7 @@
         <em:id>fxos.tv@mozilla.org</em:id>
         <em:type>2</em:type>
         <em:name>Send tab to TV</em:name>
-        <em:version>1.05</em:version>
+        <em:version>1.1</em:version>
         <em:bootstrap>true</em:bootstrap>
         <em:description>Sending webpages to Firefox OS TV from Firefox for Android.</em:description>
         <em:creator>Chun-Min Chang</em:creator>
