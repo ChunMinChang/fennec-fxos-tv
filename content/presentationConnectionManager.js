@@ -81,29 +81,30 @@ var PresentationConnectionManager = function() {
 
         _debug('state: ' + aSession.state);
 
-        function setSessionAndResolve() {
-          // Store the session
+        function setSession() {
+          // Set the session
           _session = aSession;
+          // Set the callbacks for state-change of presentation
           _session.onmessage = _onMessage;
           _session.onconnect = _onStatechange;
           _session.onclose = _onStatechange;
           _session.onterminate = _onStatechange;
-          aResolve();
+          // To compatible with old version of fennec
+          _session.onstatechange = _onStatechange;
         }
 
         if (aSession.state == 'connected') {
-          setSessionAndResolve();
-          return;
+          setSession();
+          aResolve();
         } else if (aSession.state == 'connecting') {
           aSession.onconnect = function() {
             _debug('session.onconnect is called!');
-            setSessionAndResolve();
+            setSession();
+            aResolve();
           }
-          return;
+        } else {
+          aReject('The session state is wrong!');
         }
-
-        aReject('The session state is wrong!');
-
       }).catch(function(aError) {
         aReject(aError);
       });
