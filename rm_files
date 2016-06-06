@@ -1,5 +1,5 @@
 #!/bin/bash
-XPI=fennec-fxos-tv.xpi
+XPI=fxos-tv@mozilla.org.xpi
 INST_PAGE=install.html
 
 # Push the add-on to your device to test
