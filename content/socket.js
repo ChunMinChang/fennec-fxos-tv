@@ -31,6 +31,8 @@ var Socket = function() {
 
   let _messageReceiver;
 
+  let _secondTry = false;
+
   function _debug(aMsg) {
     console.log('# [Socket] ' + aMsg);
   }
@@ -57,30 +59,39 @@ var Socket = function() {
       switch(aStatus) {
         case Ci.nsISocketTransport.TIMEOUT_CONNECT: {
           _debug('  TIMEOUT_CONNECT');
+          break;
         }
         case Ci.nsISocketTransport.TIMEOUT_READ_WRITE: {
           _debug('  TIMEOUT_READ_WRITE');
+          break;
         }
         case Ci.nsISocketTransport.STATUS_RESOLVING: {
           _debug('  STATUS_RESOLVING');
+          break;
         }
         case Ci.nsISocketTransport.STATUS_RESOLVED: {
           _debug('  STATUS_RESOLVED');
+          break;
         }
         case Ci.nsISocketTransport.STATUS_CONNECTING_TO: {
           _debug('  STATUS_CONNECTING_TO');
+          break;
         }
         case Ci.nsISocketTransport.STATUS_CONNECTED_TO: {
           _debug('  STATUS_CONNECTED_TO');
+          break;
         }
         case Ci.nsISocketTransport.STATUS_SENDING_TO: {
           _debug('  STATUS_SENDING_TO');
+          break;
         }
         case Ci.nsISocketTransport.STATUS_WAITING_FOR: {
           _debug('  STATUS_WAITING_FOR');
+          break;
         }
         case Ci.nsISocketTransport.STATUS_RECEIVING_FROM: {
           _debug('  STATUS_RECEIVING_FROM');
+          break;
         }
         default:
           break;
@@ -98,7 +109,7 @@ var Socket = function() {
         aInputStream.available();
       } catch(e) {
         _debug(e);
-        disconnect();
+        // disconnect();
       }
 
       _handlerCallback.onInput &&
@@ -166,8 +177,13 @@ var Socket = function() {
 
     return new Promise(function(aResolve, aReject) {
 
+      let resolveStatus = (_secondTry) ?
+        Ci.nsISocketTransport.STATUS_CONNECTED_TO :
+        Ci.nsISocketTransport.STATUS_CONNECTING_TO;
+
       function connectingToServer() {
-        _unregisterCallback(Ci.nsISocketTransport.STATUS_CONNECTING_TO);
+        _debug('connectingToServer');
+        _unregisterCallback(resolveStatus);
 
         // Set the client certificate as appropriate.
         if (_cert) {
@@ -180,7 +196,7 @@ var Socket = function() {
         aResolve(transport);
       }
 
-      _registerCallback(Ci.nsISocketTransport.STATUS_CONNECTING_TO, connectingToServer);
+      _registerCallback(resolveStatus, connectingToServer);
 
       try {
         _output = transport.openOutputStream(0, 0, 0);
@@ -190,28 +206,38 @@ var Socket = function() {
     });
   }
 
+  function _waitUntilGettingServerCert(aTransport) {
+    _debug('_waitUntilGettingServerCert');
+    return new Promise(function(aResolve, aReject) {
+
+      function checkCert() {
+        _debug('checkCert');
+        let ssl = aTransport.securityInfo.QueryInterface(Ci.nsISSLStatusProvider).SSLStatus;
+        if (ssl && ssl.serverCert) {
+          _debug('Get certificate!');
+          aResolve(aTransport);
+        } else {
+          _debug('Wait for getting certificate....');
+          // Wait for the ssl.serverCert
+          let window = GetRecentWindow();
+          window.setTimeout(checkCert, kWaitForServerCert);
+        }
+      }
+
+      checkCert();
+    });
+  }
+
   function _overwriteServerCertificate(aTransport) {
     _debug('_overwriteServerCertificate');
     return new Promise(function(aResolve, aReject) {
       _output.asyncWait({
         onOutputStreamReady: function(stream) {
-          let msg = 'TEST';
           try {
-            stream.write(msg, msg.length);
-
-            let ssl = aTransport.securityInfo.QueryInterface(Ci.nsISSLStatusProvider).SSLStatus;
-            // console.log(ssl);
-
-            if (ssl && ssl.serverCert) {
-              _debug('Overwrite server certificate!');
+            _waitUntilGettingServerCert(aTransport)
+            .then(function(aTransport){
               overwrite();
-            } else {
-              _debug('Wait for loading server certificate!');
-
-              // Wait for the ssl.serverCert
-              let window = GetRecentWindow();
-              window.setTimeout(overwrite, kWaitForServerCert);
-            }
+            })
 
             function overwrite() {
               _debug('_overwriteServerCertificate >> overwrite');
@@ -224,8 +250,13 @@ var Socket = function() {
               // Close the invalid connection
               disconnect();
 
+              // Label this is the second try
+              _secondTry = true;
+
               // Connect to the server again
-              _startClient().then(function(aResult) {
+              _startClient()
+              .then(_waitUntilGettingServerCert)
+              .then(function(aResult) {
                 aResolve(aResult); // The aResult here is the transport!
               }).catch(function(aError) {
                 aReject(aError);
