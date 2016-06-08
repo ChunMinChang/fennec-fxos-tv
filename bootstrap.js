@@ -1202,7 +1202,7 @@ function loadIntoWindow(window) {
   // For Debug: Add a button in menu to do force-discovery
   gDiscoveryMenuId = window.NativeWindow.menu.add("Search Devices", null, function() { discoveryDevices(window); });
   // For Debug: Add a button in menu to do socket-connecting
-  gSocketMenuId = window.NativeWindow.menu.add("Socket Connect", null, function() { RemoteControlManager.start("192.168.1.111", 8080); });
+  gSocketMenuId = window.NativeWindow.menu.add("Socket Connect", null, function() { RemoteControlManager.start("192.168.1.105", 4433); });
   // For Debug: Add a button in menu to do window.PresentationRequest(URL).start()
   gStartRequestMenuId = window.NativeWindow.menu.add("Start Request", null, function() { startRequest(window); });
 
