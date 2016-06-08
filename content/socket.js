@@ -47,8 +47,17 @@ var Socket = function() {
 
   function _storeCertOverride(aCert, aHost, aPort) {
     _debug('_storeCertOverride: ' + aHost + ',' + aPort);
+
+    // ERROR_UNTRUSTED is used to avoid:
+    //   The certificate is not trusted because it is self-signed
+    // ERROR_MISMATCH is used to avoid:
+    //   The certificate is not valid for the name 192.168.1.xxx.
+    // ERROR_TIME is used to avoid:
+    //   The certificate expired on T1. The current time is T2.
+    //   (where the T1 < T2)
     let overrideBits = Ci.nsICertOverrideService.ERROR_UNTRUSTED |
-                       Ci.nsICertOverrideService.ERROR_MISMATCH;
+                       Ci.nsICertOverrideService.ERROR_MISMATCH |
+                       Ci.nsICertOverrideService.ERROR_TIME;
     certOverrideService.rememberValidityOverride(aHost, aPort, aCert,
                                                  overrideBits, true);
   }
@@ -109,7 +118,7 @@ var Socket = function() {
         aInputStream.available();
       } catch(e) {
         _debug(e);
-        // disconnect();
+        disconnect();
       }
 
       _handlerCallback.onInput &&
@@ -210,21 +219,29 @@ var Socket = function() {
     _debug('_waitUntilGettingServerCert');
     return new Promise(function(aResolve, aReject) {
 
-      function checkCert() {
-        _debug('checkCert');
+      function checkCert(times) {
+        _debug('checkCert: ' + times);
         let ssl = aTransport.securityInfo.QueryInterface(Ci.nsISSLStatusProvider).SSLStatus;
         if (ssl && ssl.serverCert) {
           _debug('Get certificate!');
           aResolve(aTransport);
         } else {
-          _debug('Wait for getting certificate....');
-          // Wait for the ssl.serverCert
+          _debug('It\'s the ' + times + ' times to wait for certificate....');
+          // Wait for the ssl.serverCert. We can try 10 times.
+          if (times > 10) {
+            _debug('Wait for too many times!');
+            aReject('Can not get certificate in time');
+            return;
+          }
+
           let window = GetRecentWindow();
-          window.setTimeout(checkCert, kWaitForServerCert);
+          window.setTimeout(function() {
+            checkCert(++times)
+          }, kWaitForServerCert);
         }
       }
 
-      checkCert();
+      checkCert(0);
     });
   }
 
@@ -235,14 +252,17 @@ var Socket = function() {
         onOutputStreamReady: function(stream) {
           try {
             _waitUntilGettingServerCert(aTransport)
-            .then(function(aTransport){
+            .then(function(aTransport) {
+              // console.log(aTransport.securityInfo.QueryInterface(Ci.nsISSLStatusProvider).SSLStatus); // log SSL status
               overwrite();
+            }).catch(function(aError) {
+              aReject(aError);
             })
 
             function overwrite() {
               _debug('_overwriteServerCertificate >> overwrite');
               _serverCert = aTransport.securityInfo.QueryInterface(Ci.nsISSLStatusProvider).SSLStatus.serverCert;
-              //console.log(_serverCert.sha256Fingerprint);
+              //console.log(_serverCert.sha256Fingerprint); // log fingerprint
               // Overwrite server's certificate if the certificate is wrong.
               // This will always happens in first connection.
               _storeCertOverride(_serverCert, _host, _port);
@@ -256,8 +276,8 @@ var Socket = function() {
               // Connect to the server again
               _startClient()
               .then(_waitUntilGettingServerCert)
-              .then(function(aResult) {
-                aResolve(aResult); // The aResult here is the transport!
+              .then(function(aTransport) {
+                aResolve(aTransport);
               }).catch(function(aError) {
                 aReject(aError);
               });
@@ -479,6 +499,8 @@ var Socket = function() {
         aResolve(aTransport)
       }).catch(function(aError) {
         aReject(aError);
+        _debug('Error occurs: ' + aError);
+        disconnect();
       });
     });
   }
