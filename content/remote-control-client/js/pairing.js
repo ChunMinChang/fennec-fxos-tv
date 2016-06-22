@@ -15,6 +15,7 @@
 
     btnRestartPairing.addEventListener('click', function() {
       window.location.reload();
+      exports.reconnect();
     });
 
     btnSubmit.disabled = false;
@@ -22,16 +23,26 @@
     // This will be fired if the PIN code authentication is failed
     var onerror = function(reason) {
 
-      function errorHandling(message) {
+      function showError(message) {
         pinCodeInput.empty();
         btnSubmit.disabled = false;
         showMessage(message, true);
+      }
 
-        // reconnect and reload the pin code page after 2 seconds
+      function autoReconnect(seconds) {
         setTimeout(function() {
           window.location.reload();
           exports.reconnect();
-        }, 1000);
+        }, seconds * 1000);
+      }
+
+      function chooseReconnect() {
+        // Hide the PIN code input
+        document.getElementById('pairing-code').style.visibility = 'hidden';
+        // Hide the connect button
+        btnSubmit.style.display = 'none';
+        // Show the reconnect button
+        btnRestartPairing.style.display = 'block';
       }
 
       let type;
@@ -39,17 +50,21 @@
       switch(reason) {
         case 'wrong-pin':
           type = 'wrong-pin';
+          document.l10n.formatValue(type).then(showError);
+          // Reconnect automatically after 1 second
+          autoReconnect(1);
           break;
         case 'pin-expired':
           type = 'pin-code-expired-message';
+          document.l10n.formatValue(type).then(showError);
+          // Let user choose to reconnect or not
+          chooseReconnect();
           break;
         default:
           document.l10n.formatValue('connect-error', { status: String(reason) })
-                       .then(errorHandling);
+                       .then(showError);
           return;
       }
-
-      document.l10n.formatValue(type).then(errorHandling);
     }
 
     // This will be fired after the PIN code is authenticated
