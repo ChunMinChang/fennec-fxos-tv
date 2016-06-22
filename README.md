@@ -57,8 +57,27 @@ so this add-on may need to be refactored with new style to meet the new policy.
 [mobileJS_link]: https://dxr.mozilla.org/mozilla-central/source/mobile/android/app/mobile.js#194  "mobile.js"
 [xpcom_deprecated]: https://blog.mozilla.org/addons/2015/08/21/the-future-of-developing-firefox-add-ons/ "xpcom deprecated"
 
-# Pairing Firefox OS TV
+# Compatible Firefox OS TV
 - https://developer.mozilla.org/en-US/docs/Mozilla/Firefox_OS_for_TV
 - https://wiki.mozilla.org/TV_2.6
+
+## Gaia
+- TV 2.6: https://github.com/mozilla-b2g/gaia/tree/v2.6
+
+## Gecko
+- TV 2.6: https://github.com/mozilla-b2g/gecko-b2g/tree/b2g48_v2_6
+
+## How to build TV on Flame/Nexus5
+```
+$ cd <path/to/B2G>
+$ ./build.sh
+$ ./flash.sh
+$ cd <B2G>/gaia
+$ apply patch https://gist.github.com/schien/e972c97b35922a91d206
+(set layout.css.devPixelsPerPx to 0.5 for flame, 1 for nexus 5)
+$ apply patch
+$ make clean
+$ make GAIA_DEVICE_TYPE=tv DEVICE_DEBUG=1 reset-gaia
+```
 
 [jpake]: https://www.gitbook.com/book/chunminchang/j-pake-over-tls/ "J-PAKE over TLS"
