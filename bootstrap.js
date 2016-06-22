@@ -234,6 +234,15 @@ var RemoteControlManager = (function() {
   // }
   let _sessions = {};
 
+  function _getTabIdByHost(aHost) {
+    for (let tabId in _sessions) {
+      if (aHost == _sessions[tabId].host) {
+        return tabId;
+      }
+    }
+    return false;
+  }
+
   // _serverClientPairs = {
   //   server1 id: {
   //     client id: server1 assigned client id,
@@ -505,6 +514,18 @@ var RemoteControlManager = (function() {
   // and show the error messages.
   function start(aHost, aPort) {
     _debug('start: ' + aHost + ':' + aPort);
+
+    // If the host is already connected, then just jump to its controlling tab
+    let pairedTabId = _getTabIdByHost(aHost);
+    if (pairedTabId) {
+      _debug('already connected to ' + aHost +
+             ' with remote-control tab: ' + pairedTabId);
+      let window = GetRecentWindow();
+      let controlPageTab = window.BrowserApp.getTabForId(pairedTabId);
+      window.BrowserApp.selectTab(controlPageTab);
+      return;
+    }
+    // Otherwise, build a connection between Fennec and TV
 
     let tab;
 
