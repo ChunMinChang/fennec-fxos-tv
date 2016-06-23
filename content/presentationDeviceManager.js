@@ -42,7 +42,9 @@ var PresentationDeviceManager = function() {
 
           // Force window.UIActionManager to update the pageAction
           let win = GetRecentWindow();
-          win.UIActionManager && win.UIActionManager.update();
+          win.UIActionManager &&
+          (typeof win.UIActionManager.update === 'function') &&
+          win.UIActionManager.update();
 
           break;
         default:
