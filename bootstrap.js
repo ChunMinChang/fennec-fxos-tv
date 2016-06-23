@@ -477,13 +477,21 @@ var RemoteControlManager = (function() {
 
     // Save the server-client id pair if it doesn't exist
     if (!_serverClientPairs[aPairInfo.server]) {
-      _serverClientPairs[aPairInfo.server] = {
-        client: aPairInfo.client,
-        pin: aPairInfo.pin,
-      };
-    // Otherwise, just update the pin code for the next time
-    } else {
+      _serverClientPairs[aPairInfo.server] = {};
+    }
+
+    // update the pin code for the next time
+    if (aPairInfo.pin) {
       _serverClientPairs[aPairInfo.server].pin = aPairInfo.pin;
+    }
+
+    // update a server assigned client id if it needs
+    if (aPairInfo.client) {
+      _serverClientPairs[aPairInfo.server].client = aPairInfo.client;
+    }
+
+    if (!Object.keys(_serverClientPairs[aPairInfo.server]).length) {
+      _debug('!!!!!!! No key in this server-client pair !!!!!!!!');
     }
   }
 

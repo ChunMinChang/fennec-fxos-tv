@@ -163,15 +163,28 @@ var AuthSocket = function() {
           return;
         }
 
+        _debug((aMsg.detail == 1) ?
+                 'TV think this is the first time' :
+                 'TV think this is not the first time');
+
         // Check whether or not the connection is first
-        if (aMsg.detail > 1 && _isFirstConnection) {
+        if (aMsg.detail == 1 && !_isFirstConnection) {
+          // TV may clear the client's data so TV can't recognize this device.
+          _debug('TV can NOT recognize this device!');
+          _debug('Clear the stored data and keep going next state');
+          // Clear the stored assigned data by TV
+          _assignedID = null;
+          _PIN = null;
+          // Label it as the first-time connection
+          _isFirstConnection = true;
+        } else if (aMsg.detail > 1 && _isFirstConnection) {
+          _debug('TV mis-recognizes this device!');
+          _debug('TV thinks it is not the first-time connection, but it does!');
+          _debug('Drop the connection......');
           // Reset the state
           _authState = AUTH_STATE.IDLE;
           return;
         }
-
-        _debug((aMsg.detail == 1) ?
-                 'this is the first time' : 'this is not the first time' );
 
         // Compute the Round 1 data and send it to TV
         let round1Data = _jpake.round1(_signerID);
@@ -379,7 +392,7 @@ var AuthSocket = function() {
     .then(function(aTransport) {
       _debug('Finish connection! Start authentication!');
 
-      // Check whether or not we have an assined client id for this server
+      // Check whether or not we have an assigned client id for this server
       let fingerprint = _socket.serverCert.sha256Fingerprint;
       let serverId = _getServerIDFromFingerprint(fingerprint);
 
