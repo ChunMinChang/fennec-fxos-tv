@@ -1,3 +1,6 @@
+# Demo
+[![FxOS Remote Control][RemoteControlImg]][RemoteControlURL]
+
 # Features
 - Scanning nearby devices by __W3C Presentation api__
 - Sending webpage via presentation api
@@ -32,6 +35,10 @@ $ ./rm_files
 
 # J-PAKE over TLS
 Please read the [my book][jpake] about this to get more detail.
+
+## Talk slides
+The Magic behind Remotecontrol
+Service of Firefox OS TV: [slides here][slides]
 
 # Notes
 ## LazyGetter
@@ -81,3 +88,7 @@ $ make GAIA_DEVICE_TYPE=tv DEVICE_DEBUG=1 reset-gaia
 ```
 
 [jpake]: https://www.gitbook.com/book/chunminchang/j-pake-over-tls/ "J-PAKE over TLS"
+[RemoteControlImg]: http://img.youtube.com/vi/Hqv_EnqQ86Y/0.jpg "FxOS Remote Control"
+[RemoteControlURL]: https://www.youtube.com/watch?v=Hqv_EnqQ86Y&list=PLSVOWZrQzZlY07b3gR6ONDECSsh-83w9N&index=1 "FxOS Remote Control"
+[slides]: http://chunminchang.github.io/works/remotecontrol/jpake-over-tls.pdf "The Magic behind Remote-control Service of Firefox OS TV"
+<!-- [RemoteControlURL]: https://www.youtube.com/playlist?list=PLSVOWZrQzZlY07b3gR6ONDECSsh-83w9N "FxOS Remote Control" -->
