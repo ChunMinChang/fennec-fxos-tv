@@ -2,9 +2,9 @@
 [![FxOS Remote Control][RemoteControlImg]][RemoteControlURL]
 
 # Features
-- Scanning nearby devices by __W3C Presentation api__
-- Sending webpage via presentation api
-- Remotely controlling your Firefox OS TV
+- Scan nearby devices by __W3C Presentation api__
+- Cast webpage to TV via _presentation_ api
+- Remotely control your Firefox OS TV
   - protocol: J-PAKE over TLS
 
 # Install
@@ -37,8 +37,7 @@ $ ./rm_files
 Please read the [my book][jpake] about this to get more detail.
 
 ## Talk slides
-The Magic behind Remotecontrol
-Service of Firefox OS TV: [slides here][slides]
+The Magic behind Remote-control Service of Firefox OS TV: [slides here][slides]
 
 # Notes
 ## LazyGetter
