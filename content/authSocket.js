@@ -166,6 +166,9 @@ var AuthSocket = function() {
         _debug((aMsg.detail == 1) ?
                  'TV think this is the first time' :
                  'TV think this is not the first time');
+        _debug((_isFirstConnection) ?
+                'Device think this is the first time' :
+                'Device think this is not the first time');
 
         // Check whether or not the connection is first
         if (aMsg.detail == 1 && !_isFirstConnection) {
