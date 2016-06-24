@@ -480,16 +480,18 @@ var RemoteControlManager = (function() {
       _serverClientPairs[aPairInfo.server] = {};
     }
 
-    // update the pin code for the next time
+    // Update the PIN code for the next-time usage
     if (aPairInfo.pin) {
       _serverClientPairs[aPairInfo.server].pin = aPairInfo.pin;
     }
 
-    // update a server assigned client id if it needs
+    // Update the server assigned client id if it needs
     if (aPairInfo.client) {
       _serverClientPairs[aPairInfo.server].client = aPairInfo.client;
     }
 
+    // If there is no property in server-client id pair,
+    // then it must have something wrong!
     if (!Object.keys(_serverClientPairs[aPairInfo.server]).length) {
       _debug('!!!!!!! No key in this server-client pair !!!!!!!!');
     }
@@ -497,7 +499,7 @@ var RemoteControlManager = (function() {
 
   // This will be fired after the authentication is failed
   function _onFailure(aResult) {
-    _debug('_onFailure: ' + aResult.tabId + ',error: ' + aResult.error);
+    _debug('_onFailure: ' + aResult.tabId + ', error: ' + aResult.error);
 
     // Remove the watchdog after we get the responses from server
     _removeWatchdog(aResult.tabId);
