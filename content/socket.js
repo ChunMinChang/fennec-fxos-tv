@@ -17,6 +17,7 @@ const { NetUtil } = Cu.import("resource://gre/modules/NetUtil.jsm", {});
 
 const kWaitForDisconnection = 750;
 const kWaitForServerCert = 750;
+const kPeriodicalCheck = 1000;
 
 var Socket = function() {
 
@@ -502,7 +503,8 @@ var Socket = function() {
       // .then(_maybeOverwriteServerCertificate)
       .then(_overwriteServerCertificate)
       .then(function(aTransport) {
-        aResolve(aTransport)
+        aResolve(aTransport);
+        // periodicallyCheckStatus(aTransport);
       }).catch(function(aError) {
         aReject(aError);
         _debug('Error occurs: ' + aError);
@@ -520,6 +522,21 @@ var Socket = function() {
     if (_output) {
       _output.close();
     }
+  }
+
+  function periodicallyCheckStatus(aTransport) {
+
+    function check() {
+      // console.log(aTransport);
+      // console.log(aTransport.isAlive());
+
+      if (aTransport.isAlive()) {
+        let window = GetRecentWindow();
+        window.setTimeout(check, kPeriodicalCheck);
+      }
+    }
+
+    check();
   }
 
   return {
