@@ -31,6 +31,8 @@ var Socket = function() {
 
   let _messageReceiver;
 
+  let _serverCloseNotifier;
+
   let _secondTry = false;
 
   function _debug(aMsg) {
@@ -119,6 +121,10 @@ var Socket = function() {
       } catch(e) {
         _debug(e);
         disconnect();
+
+        if (_serverCloseNotifier) {
+          _serverCloseNotifier();
+        }
       }
 
       _handlerCallback.onInput &&
@@ -524,6 +530,9 @@ var Socket = function() {
     setMessageReceiver: setMessageReceiver,
     get serverCert() {
       return _serverCert;
+    },
+    set serverCloseNotifier(aNotifier) {
+      (typeof aNotifier === 'function') && (_serverCloseNotifier = aNotifier);
     },
   };
 };

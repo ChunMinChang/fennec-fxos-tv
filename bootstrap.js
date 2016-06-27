@@ -453,6 +453,16 @@ var RemoteControlManager = (function() {
     }
   }
 
+  // This will be fired upon server close the connection
+  function _onServerClose(aTabId) {
+    _debug('_onServerClose: ' + aTabId);
+
+    // Show message to user that server close the connection
+    ShowMessage(_getString('service.server.close'), true);
+
+    _clearSession(aTabId);
+  }
+
   // This will be fired after the authentication is successful
   function _onSuccess(aPairInfo) {
     _debug('_onSuccess: ' + aPairInfo.tabId);
@@ -495,6 +505,9 @@ var RemoteControlManager = (function() {
     if (!Object.keys(_serverClientPairs[aPairInfo.server]).length) {
       _debug('!!!!!!! No key in this server-client pair !!!!!!!!');
     }
+
+    // Set callback that will be fired when TV closes the connection
+    _sessions[aPairInfo.tabId].authSocket.serverCloseNotifier = _onServerClose;
   }
 
   // This will be fired after the authentication is failed
@@ -608,7 +621,7 @@ var RemoteControlManager = (function() {
       _debug(aError);
       // Show error message to user
       ShowMessage(_getString('service.request.fail'), true);
-      // Clear the this failed session
+      // Clear this failed session
       _clearSession(tab.id);
     });
   }

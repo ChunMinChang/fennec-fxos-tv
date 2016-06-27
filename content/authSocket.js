@@ -521,6 +521,20 @@ var AuthSocket = function() {
     enterPIN: enterPIN,
     set needPINNotifier(aNotifier) {
       (typeof aNotifier === 'function') && (_needPINNotifier = aNotifier);
-    }
+    },
+    set serverCloseNotifier(aNotifier) {
+      _debug('serverCloseNotifier');
+
+      if (typeof aNotifier !== 'function') {
+        _debug(aNotifier + ' is not a function!');
+        return;
+      }
+
+      function notifierProxy() {
+        aNotifier(_tabId);
+      }
+
+      _socket.serverCloseNotifier = notifierProxy;
+    },
   };
 };
