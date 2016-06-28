@@ -199,6 +199,9 @@ const kRemoteControlUIURL = 'chrome://fxostv/content/remote-control-client/clien
 const kLoadingPageURL = 'chrome://fxostv/content/remote-control-client/loading.html';
 // The waiting time for watchdog
 const kWatchdogTimer = 20; // seconds
+const kServerClientPairsPref = 'fxos.tv.server_client_pairs';
+// const kValidPeriod = 30 * 24 * 60 * 60 * 1000; // 30 days to ms;
+const kValidPeriod = 60 * 1000; // 30 days to ms;
 
 // Remote Control Manager module
 // -----------------------------
@@ -254,7 +257,30 @@ var RemoteControlManager = (function() {
   //   }
   //   ...
   // }
-  let _serverClientPairs = {};
+  // let _serverClientPairs = {};
+  let _serverClientPairs =
+    (Services.prefs.getPrefType(kServerClientPairsPref)) ?
+      JSON.parse(Services.prefs.getCharPref(kServerClientPairsPref)) : {};
+
+  // Remove the expired server-client info pair
+  let updated = false;
+  for (let serverId in _serverClientPairs) {
+    let info = _serverClientPairs[serverId];
+    let currentTime = new Date().getTime();
+    // Delete the pair if it is already expired
+    if ((info.lastUpdate + kValidPeriod) < currentTime) {
+      updated = true;
+      _debug('Server: ' + serverId + ' is expired! Remove its pairing data!');
+      delete _serverClientPairs[serverId];
+    }
+  }
+
+  if (updated) {
+    let pairsData = JSON.stringify(_serverClientPairs);
+    Services.prefs.setCharPref(kServerClientPairsPref, pairsData);
+    // This preference is consulted during startup.
+    Services.prefs.savePrefFile(null);
+  }
 
   function _clearSession(aTabId) {
     _debug('_clearSession: ' + aTabId);
@@ -500,9 +526,17 @@ var RemoteControlManager = (function() {
       _serverClientPairs[aPairInfo.server].client = aPairInfo.client;
     }
 
-    // If there is no property in server-client id pair,
-    // then it must have something wrong!
-    if (!Object.keys(_serverClientPairs[aPairInfo.server]).length) {
+    // Update the server-client info pairs
+    if (Object.keys(_serverClientPairs[aPairInfo.server]).length) {
+      _debug('!!!!!!! Saving Pair info !!!!!!!!');
+      _serverClientPairs[aPairInfo.server].lastUpdate = new Date().getTime();
+      let pairsData = JSON.stringify(_serverClientPairs);
+      Services.prefs.setCharPref(kServerClientPairsPref, pairsData);
+      // This preference is consulted during startup.
+      Services.prefs.savePrefFile(null);
+    } else {
+      // If there is no property in server-client id pair,
+      // then it must have something wrong!
       _debug('!!!!!!! No key in this server-client pair !!!!!!!!');
     }
 
