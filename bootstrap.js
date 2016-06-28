@@ -200,8 +200,6 @@ XPCOMUtils.defineLazyGetter(this, "AuthSocket", function() {
 // If we put this into LazyGetter, the immediately executed RemoteControlManager
 // can NOT get it!
 const kServerClientPairsPref = 'fxos.tv.server_client_pairs';
-const kValidPeriod = 30 * 24 * 60 * 60 * 1000; // 30 days to ms;
-// const kValidPeriod = 2 * 60 * 1000; // 2 min to ms;
 
 var PairingData = (function () {
 
@@ -209,7 +207,6 @@ var PairingData = (function () {
     this.server = aServerId;
     this.client = aClientId;
     this.pin = aPIN;
-    this.lastUpdate = _getTimestamp();
     return this;
   }
 
@@ -218,12 +215,10 @@ var PairingData = (function () {
   //   server1 id: {
   //     client id: server1 assigned client id,
   //     pin: the AES base 64 signature from last time for next PIN code,
-  //     lastUpdate: the last connection time between the server and the client
   //   }
   //   server2 id: {
   //     client id: server2 assigned client id,
   //     pin: the AES base 64 signature from last time for next PIN code,
-  //     lastUpdate: the last connection time between the server and the client
   //   }
   //   ...
   // }
@@ -271,7 +266,6 @@ var PairingData = (function () {
     pairs[pairingInfo.server] = {
       client: pairingInfo.client,
       pin: pairingInfo.pin,
-      lastUpdate: pairingInfo.lastUpdate
     };
 
     // Save it
@@ -325,8 +319,6 @@ var PairingData = (function () {
       pairs[aServerId].pin = aPIN;
     }
 
-    pairs[aServerId].lastUpdate = _getTimestamp();
-
     // Save it
     setPairs(pairs);
 
@@ -358,36 +350,6 @@ var PairingData = (function () {
     Services.prefs.deleteBranch(kServerClientPairsPref);
   }
 
-  // Remove the expired server-client info pair
-  function refresh() {
-    _debug('refresh');
-
-    // Get the current timestamp
-    let currentTime = _getTimestamp();
-
-    // Retrieve the stored pairing data
-    let pairs = getPairs();
-
-    // A flag to detect whether or not we need to update the data
-    let updated = false;
-
-    // Check every item's valid time
-    for (let serverId in pairs) {
-      // Delete the pair if it is already expired
-      if ((pairs[serverId].lastUpdate + kValidPeriod) < currentTime) {
-        updated = true;
-
-        _debug('Server: ' + serverId + ' is expired! Remove its pairing data!');
-        delete pairs[serverId];
-      }
-    }
-
-    // Update the pairing data if it needs
-    if (updated) {
-      setPairs(pairs);
-    }
-  }
-
   return {
     getPairs: getPairs,
     setPairs: setPairs,
@@ -396,7 +358,6 @@ var PairingData = (function () {
     save: save,
     remove: remove,
     deleteAll: deleteAll,
-    refresh: refresh,
   };
 })();
 
@@ -469,8 +430,6 @@ var RemoteControlManager = (function() {
   //   }
   //   ...
   // }
-  // let _serverClientPairs = {};
-  PairingData.refresh();
   let _serverClientPairs = PairingData.getPairs();
   console.log(_serverClientPairs);
 
