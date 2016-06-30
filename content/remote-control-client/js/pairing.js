@@ -70,6 +70,8 @@
     // This will be fired after the PIN code is authenticated
     var onsuccess = function() {
       document.l10n.formatValue('connect-success').then(function(value) {
+        pinCodeInput.empty();
+        
         // Show successful message to users
         showMessage(value);
         // re-direct url to remote-controller page
