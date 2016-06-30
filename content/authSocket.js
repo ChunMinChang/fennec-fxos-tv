@@ -420,16 +420,24 @@ var AuthSocket = function() {
       (_isFirstConnection) ?
         _sendAuthentication('request_handshake') :
         _sendAuthentication('request_handshake', { id : _assignedID });
+    })
+    .catch(function(aError) {
+      _debug(aError);
     });
 
     return new Promise(function(aResolve, aReject) {
       function afterAuthentication(aResult, aServerAssignedID, aError) {
         _debug('afterAuthentication: ' + aResult);
 
+        // Get the server id from its fingerprint
+        let fingerprint = _socket.serverCert.sha256Fingerprint;
+
         let pair = {
+          server: _getServerIDFromFingerprint(fingerprint),
           tabId: _tabId,
         };
 
+        // Return error if the authentication is failed
         if (!aResult) {
           _debug('  error: ' + aError);
           pair.error = aError;
@@ -447,11 +455,8 @@ var AuthSocket = function() {
           return;
         }
 
-        // Resolve with returning server-client pair information:
-        let fingerprint = _socket.serverCert.sha256Fingerprint;
-
         // Use the latest AES key as the next-time PIN code
-        pair.server = _getServerIDFromFingerprint(fingerprint);
+        // if the connection is built successfully.
         pair.pin = _AESKey.slice(0, 4);
 
         // Update a server assigned client id if it needs

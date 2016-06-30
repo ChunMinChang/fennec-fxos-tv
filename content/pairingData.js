@@ -141,12 +141,12 @@ var PairingData = (function () {
     let pairs = getPairs();
 
     // If it doesn't exist, then do nothing!
-    if (!pairs[pairingInfo.server]) {
+    if (!pairs[aServerId]) {
       _debug('The ' + aServerId + ' does NOT exist!');
       return false;
     }
 
-    delete pairs[pairingInfo.server];
+    delete pairs[aServerId];
 
     setPairs(pairs);
 

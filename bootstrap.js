@@ -332,12 +332,12 @@ var PairingData = (function () {
     let pairs = getPairs();
 
     // If it doesn't exist, then do nothing!
-    if (!pairs[pairingInfo.server]) {
+    if (!pairs[aServerId]) {
       _debug('The ' + aServerId + ' does NOT exist!');
       return false;
     }
 
-    delete pairs[pairingInfo.server];
+    delete pairs[aServerId];
 
     setPairs(pairs);
 
@@ -418,20 +418,6 @@ var RemoteControlManager = (function() {
     }
     return false;
   }
-
-  // _serverClientPairs = {
-  //   server1 id: {
-  //     client id: server1 assigned client id,
-  //     pin: the AES base 64 signature from last time,
-  //   }
-  //   server2 id: {
-  //     client id: server2 assigned client id,
-  //     pin: the AES base 64 signature from last time,
-  //   }
-  //   ...
-  // }
-  let _serverClientPairs = PairingData.getPairs();
-  console.log(_serverClientPairs);
 
   function _clearSession(aTabId) {
     _debug('_clearSession: ' + aTabId);
@@ -526,11 +512,14 @@ var RemoteControlManager = (function() {
             // Show message to user for reconnecting
             // ShowMessage(_getString('service.request.reconnect'), true);
 
+            let serverClientPairs = PairingData.getPairs();
+            console.log(serverClientPairs);
+
             authSocket.connect({
               host: _sessions[msg.tabId].host,
               port: _sessions[msg.tabId].port,
               cert: aCert,
-            }, _serverClientPairs, msg.tabId, true)
+            }, serverClientPairs, msg.tabId, true)
             .then(_onSuccess, _onFailure);
           });
 
@@ -662,46 +651,47 @@ var RemoteControlManager = (function() {
       tab.window.location = kRemoteControlUIURL;
     }
 
-    // Save the server-client id pair if it doesn't exist
-    if (!_serverClientPairs[aPairInfo.server]) {
-      _serverClientPairs[aPairInfo.server] = {};
-    }
-
-    // Update the PIN code for the next-time usage
-    if (aPairInfo.pin) {
-      _serverClientPairs[aPairInfo.server].pin = aPairInfo.pin;
-    }
-
-    // Update the server assigned client id if it needs
-    if (aPairInfo.client) {
-      _serverClientPairs[aPairInfo.server].client = aPairInfo.client;
-    }
-
-    // Update the server-client info pairs
-    if (Object.keys(_serverClientPairs[aPairInfo.server]).length) {
-      PairingData.save(aPairInfo.server, aPairInfo.client, aPairInfo.pin);
-    } else {
-      // If there is no property in server-client id pair,
-      // then it must have something wrong!
-      _debug('!!!!!!! No key in this server-client pair !!!!!!!!');
-    }
+    PairingData.save(aPairInfo.server, aPairInfo.client, aPairInfo.pin);
 
     // Set callback that will be fired when TV closes the connection
     _sessions[aPairInfo.tabId].authSocket.serverCloseNotifier = _onServerClose;
   }
 
   // This will be fired after the authentication is failed
-  function _onFailure(aResult) {
-    _debug('_onFailure: ' + aResult.tabId + ', error: ' + aResult.error);
+  function _onFailure(aPairInfo) {
+    _debug('_onFailure: ' + aPairInfo.tabId + ', error: ' + aPairInfo.error);
+
+    // Remove the pairing data for this server
+    // if the connection can not be built
+    PairingData.remove(aPairInfo.server);
 
     // Remove the watchdog after we get the responses from server
-    _removeWatchdog(aResult.tabId);
+    _removeWatchdog(aPairInfo.tabId);
 
-    // Show error message on PIN code page if aReason is:
+    // Show error message if aReason is:
     //   pin-expired  : PIN code is expired
     //   wrong-pin    : PIN entered is wrong
-    if (aResult.error == 'pin-expired' || aResult.error == 'wrong-pin') {
-      _notifyPINPage({ valid : false, reason: aResult.error });
+    if (aPairInfo.error == 'pin-expired' || aPairInfo.error == 'wrong-pin') {
+      // If the page is pin code page, then show error message on it.
+      let window = GetRecentWindow();
+      let tab = window.BrowserApp.getTabForId(aPairInfo.tabId);
+      if (tab.window.location == kRemoteControlPairingPINURL) {
+        _notifyPINPage({ valid : false, reason: aPairInfo.error });
+      // If its in loading page, then kill it
+      } else if (tab.window.location == kLoadingPageURL) {
+        _clearSession(aPairInfo.tabId);
+        ShowMessage(_getString('service.request.fail'), true);
+      // If it's in other page, then delete from _sessions
+      } else {
+        // Disconnect
+        _sessions[aPairInfo.tabId].authSocket.disconnect();
+
+        // Delete the session
+        delete _sessions[aPairInfo.tabId];
+
+        ShowMessage(_getString('service.request.fail'), true);
+      }
+
     }
   }
 
@@ -788,12 +778,15 @@ var RemoteControlManager = (function() {
       // Set a watchdog to wait for the server's response
       _setWatchdog(tab.id);
 
+      let serverClientPairs = PairingData.getPairs();
+      console.log(serverClientPairs);
+
       // Try to connect TV
       return authSocket.connect({
         host: aHost,
         port: aPort,
         cert: aCert,
-      }, _serverClientPairs, tab.id);
+      }, serverClientPairs, tab.id);
     })
     .then(_onSuccess, _onFailure)
     .catch(function(aError) {
