@@ -406,8 +406,12 @@ var Socket = function() {
     _debug('sendMessage');
     let msg = {
       type: aType,
-      action: aAction,
+      // action: aAction,
       // detail: aDetail,
+    }
+
+    if (aAction) {
+      msg.action = aAction;
     }
 
     if (aDetail) {

@@ -62,6 +62,11 @@ var AuthSocket = function() {
   //   auth is true if authnication is passed. Otherwise, it's false.
   let _afterAuthenticatingCallback;
 
+  // Handler that will be fired after receiving ack message.
+  // This will be reset everytime when validateConnection is called.
+  let _ackHandler;
+  const kWaitForAck = 2000; // ms
+
   // the tab's id paired with this authSocket
   let _tabId;
 
@@ -126,6 +131,8 @@ var AuthSocket = function() {
     console.log(aMsg);
     if (aMsg.type == 'auth') {
       _authenticate(aMsg);
+    } else if (aMsg.type == 'ack') {
+      _ackHandler && (typeof _ackHandler === 'function') && _ackHandler(aMsg);
     }
   }
 
@@ -519,6 +526,46 @@ var AuthSocket = function() {
     });
   }
 
+  function validateConnection() {
+    _debug('validateConnection');
+
+    return new Promise(function(aResolve, aReject) {
+      if (_authState != AUTH_STATE.FINISH) {
+        _debug('The authentication is still processing/waiting for processing.');
+        aReject('state-error');
+        return;
+      }
+
+      let timeoutId;
+      let window = GetRecentWindow();
+
+      let isAckReceived = false;
+
+      function handler(aMsg) {
+        if (aMsg && aMsg.detail == 'pong') {
+          isAckReceived = true;
+
+          timeoutId && window.clearTimeout(timeoutId);
+
+          aResolve();
+        }
+      }
+
+      function waitForResponse() {
+        if (!isAckReceived) {
+          _debug('no response received');
+          aReject('no-response');
+        }
+      }
+
+      _ackHandler = handler;
+
+      timeoutId = window.setTimeout(waitForResponse, kWaitForAck);
+
+      _socket.sendMessage('ack', null, 'ping');
+    });
+  }
+
   return {
     connect: connect,
     disconnect: disconnect,
@@ -541,5 +588,6 @@ var AuthSocket = function() {
 
       _socket.serverCloseNotifier = notifierProxy;
     },
+    validateConnection: validateConnection,
   };
 };
