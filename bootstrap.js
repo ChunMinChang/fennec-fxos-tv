@@ -1061,12 +1061,6 @@ var UIActionManager = function() {
                        _sendPage,
                        devices[i]);
 
-      // Add remote-control service
-      addServiceToMenu(!!devices[i].remoteControlInfo,
-                       _getString('service.remoteControl'),
-                       _remoteControl,
-                       devices[i]);
-
       // Add video casting service
       addServiceToMenu(videoCastable && devices[i].sendVideo,
                        _getString('service.sendVideo'),
@@ -1178,61 +1172,46 @@ var UIActionManager = function() {
   //     ShowMessage(_getString('service.request.fail'), true);
   //   });
   // }
-  function _sendPage(aWindow, aTarget) {
-    _debug('_sendPage');
-    if (!aWindow.presentationManager ||
-        !aWindow.presentationManager.connectionManager) {
-      _debug('  >> there is no available PresentationConnectionManager');
-      return;
-    }
 
-    // Close the presentation session after receiving 'ack'
-    let listener = {
-      ack: function(aMessage, aEvent) {
-        _debug('terminate after receiving ack!');
-        let win = GetRecentWindow();
-        win.presentationManager.connectionManager.unregisterListener(this);
-        win.presentationManager.connectionManager.terminate();
-      },
-    }
-    aWindow.presentationManager.connectionManager.registerListener(listener);
-
-    // Start connecting to TV
-    let currentURL = _getCurrentURL(aWindow);
-    let appURL = 'app://notification-receiver.gaiamobile.org/index.html';
-    aWindow.presentationManager.connectionManager.start(aWindow, appURL, aTarget)
-    .then(function(aResult) {
-      // Show message: request sent
-      ShowMessage(_getString('service.request.send'), true);
-      // Request TV to show the page
-      aWindow.presentationManager.connectionManager
-      .sendCommand('view', {
-        'url': currentURL,
-        'timestamp': Date.now(),
-      });
-    }).catch(function(aError) {
-      // Show message: request fail
-      ShowMessage(_getString('service.request.fail'), true);
-    });
-  }
-
-  // function _remoteControl(aWindow, aTarget) {
-  //   _debug('_remoteControl');
+  // function _sendPage(aWindow, aTarget) {
+  //   _debug('_sendPage');
   //   if (!aWindow.presentationManager ||
   //       !aWindow.presentationManager.connectionManager) {
   //     _debug('  >> there is no available PresentationConnectionManager');
   //     return;
   //   }
   //
-  //   _debug('Connect to ' + aTarget.remoteControlInfo.address +
-  //          ':' + aTarget.remoteControlInfo.port);
+  //   // Close the presentation session after receiving 'ack'
+  //   let listener = {
+  //     ack: function(aMessage, aEvent) {
+  //       _debug('terminate after receiving ack!');
+  //       let win = GetRecentWindow();
+  //       win.presentationManager.connectionManager.unregisterListener(this);
+  //       win.presentationManager.connectionManager.terminate();
+  //     },
+  //   }
+  //   aWindow.presentationManager.connectionManager.registerListener(listener);
   //
-  //   // Connect to TV and remotely operate it on fennec
-  //   RemoteControlManager.start(aTarget.remoteControlInfo.address,
-  //                              aTarget.remoteControlInfo.port);
+  //   // Start connecting to TV
+  //   let currentURL = _getCurrentURL(aWindow);
+  //   let appURL = 'app://notification-receiver.gaiamobile.org/index.html';
+  //   aWindow.presentationManager.connectionManager.start(aWindow, appURL, aTarget)
+  //   .then(function(aResult) {
+  //     // Show message: request sent
+  //     ShowMessage(_getString('service.request.send'), true);
+  //     // Request TV to show the page
+  //     aWindow.presentationManager.connectionManager
+  //     .sendCommand('view', {
+  //       'url': currentURL,
+  //       'timestamp': Date.now(),
+  //     });
+  //   }).catch(function(aError) {
+  //     // Show message: request fail
+  //     ShowMessage(_getString('service.request.fail'), true);
+  //   });
   // }
 
-  function _remoteControl(aWindow, aTarget) {
+  function _sendPage(aWindow, aTarget) {
     _debug('_remoteControl');
     if (!aWindow.presentationManager ||
         !aWindow.presentationManager.connectionManager) {
@@ -1242,6 +1221,12 @@ var UIActionManager = function() {
 
     function _launchService() {
       _debug('_launchService');
+
+      if (!aTarget.remoteControlInfo) {
+        _debug('No available information indicating this device support remote-control service.');
+        return;
+      }
+
       _debug('Connect to ' + aTarget.remoteControlInfo.address +
              ':' + aTarget.remoteControlInfo.port);
 

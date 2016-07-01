@@ -6,9 +6,10 @@ var PresentationDevices = (function () {
     console.log('# [PresentationDevices] ' + aMsg);
   }
 
+  // The pinPage and sendVideo doesn't work in current FxOS TV
   const _serviceEnum = {
-    remoteControl: 0,
-    sendPage: 1,
+    sendPage: 0,
+    remoteControl: 1, // This function is binded with sendPage
     pinPage: 2,
     sendVideo: 3,
   };
@@ -22,16 +23,15 @@ var PresentationDevices = (function () {
       name: aDevice.name || 'unidentified',
       type: aDevice.type || 'unidentified',
       // Set initial function for searched presentation devices
-      sendVideo: false,
-      sendPage: false,
-      pinPage: false,
+      sendPage: true,
       remoteControlInfo: false,
+      sendVideo: false,
+      pinPage: false,
       // Return true if the device provide any service
       get available() {
-        return this.sendVideo ||
-               this.sendPage ||
-               this.pinPage ||
-               this.remoteControlInfo;
+        return this.sendPage ||
+               this.sendVideo ||
+               this.pinPage;
       },
     };
   }
