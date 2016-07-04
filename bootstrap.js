@@ -203,12 +203,7 @@ const kServerClientPairsPref = 'fxos.tv.server_client_pairs';
 
 var PairingData = (function () {
 
-  function PairingInfo(aServerId, aClientId, aPIN) {
-    this.server = aServerId;
-    this.client = aClientId;
-    this.pin = aPIN;
-    return this;
-  }
+  let _cacheData;
 
   // The Pairing Data structure is:
   // {
@@ -227,16 +222,17 @@ var PairingData = (function () {
     console.log('# [PairingData] ' + aMsg);
   }
 
-  function _getTimestamp() {
-    return new Date().getTime();
-  }
-
   // Return the stored server-client pairing information.
   // If nothing exist, then return a empty object
   function getPairs() {
     _debug('getPairs');
-    return (Services.prefs.getPrefType(kServerClientPairsPref)) ?
-      JSON.parse(Services.prefs.getCharPref(kServerClientPairsPref)) : {};
+
+    if (!_cacheData) {
+      _cacheData = (Services.prefs.getPrefType(kServerClientPairsPref)) ?
+        JSON.parse(Services.prefs.getCharPref(kServerClientPairsPref)) : {};
+    }
+
+    return _cacheData;
   }
 
   // Save the pairing data
@@ -248,79 +244,28 @@ var PairingData = (function () {
     Services.prefs.savePrefFile(null);
   }
 
-  function add(aServerId, aClientId, aPIN) {
-    _debug('add');
-
-    // Retrieve the stored pairing data
-    let pairs = getPairs();
-
-    let pairingInfo = new PairingInfo(aServerId, aClientId, aPIN);
-
-    // If it exist, then do nothing!
-    if (pairs[pairingInfo.server]) {
-      _debug('The ' + aServerId + ' is already added!');
-      return false;
-    }
-
-    // Append the new server-client pair into pairs
-    pairs[pairingInfo.server] = {
-      client: pairingInfo.client,
-      pin: pairingInfo.pin,
-    };
-
-    // Save it
-    setPairs(pairs);
-
-    return true;
-  }
-
-  function update(aServerId, aClientId, aPIN) {
-    _debug('update');
-
-    // Retrieve the stored pairing data
-    let pairs = getPairs();
-
-    // If it doesn't exist, then do nothing!
-    if (!pairs[aServerId]) {
-      _debug('The ' + aServerId + ' does NOT exist!');
-      return false;
-    }
-
-    if (aClientId) {
-      pairs[aServerId].client = aClientId;
-    }
-
-    if (aPIN) {
-      pairs[aServerId].pin = aPIN;
-    }
-
-    // Save it
-    setPairs(pairs);
-
-    return true;
-  }
-
   function save(aServerId, aClientId, aPIN) {
     _debug('save');
 
-    // Retrieve the stored pairing data
-    let pairs = getPairs();
+    if (!_cacheData) {
+      getPairs();
+    }
 
-    // If it doesn't exist, then do nothing!
-    if (!pairs[aServerId]) {
-      pairs[aServerId] = {};
+    // Create a object if it doesn't exist
+    if (!_cacheData[aServerId]) {
+      _cacheData[aServerId] = {};
     }
 
     if (aClientId) {
-      pairs[aServerId].client = aClientId;
+      _cacheData[aServerId].client = aClientId;
     }
 
     if (aPIN) {
-      pairs[aServerId].pin = aPIN;
+      _cacheData[aServerId].pin = aPIN;
     }
 
     // Save it
-    setPairs(pairs);
+    setPairs(_cacheData);
 
     return true;
   }
@@ -329,17 +274,20 @@ var PairingData = (function () {
     _debug('remove');
 
     // Retrieve the stored pairing data
-    let pairs = getPairs();
+    if (!_cacheData) {
+      getPairs();
+    }
 
     // If it doesn't exist, then do nothing!
-    if (!pairs[aServerId]) {
+    if (!_cacheData[aServerId]) {
       _debug('The ' + aServerId + ' does NOT exist!');
       return false;
     }
 
-    delete pairs[aServerId];
+    delete _cacheData[aServerId];
 
-    setPairs(pairs);
+    // Save it
+    setPairs(_cacheData);
 
     return true;
   }
@@ -348,13 +296,11 @@ var PairingData = (function () {
     _debug('deleteAll');
 
     Services.prefs.deleteBranch(kServerClientPairsPref);
+    Services.prefs.savePrefFile(null);
   }
 
   return {
     getPairs: getPairs,
-    setPairs: setPairs,
-    add: add,
-    update: update,
     save: save,
     remove: remove,
     deleteAll: deleteAll,
@@ -651,7 +597,9 @@ var RemoteControlManager = (function() {
       tab.window.location = kRemoteControlUIURL;
     }
 
+    // If this is not the first-time connection, aPairInfo.client is null
     PairingData.save(aPairInfo.server, aPairInfo.client, aPairInfo.pin);
+    console.log(PairingData.getPairs());
 
     // Set callback that will be fired when TV closes the connection
     _sessions[aPairInfo.tabId].authSocket.serverCloseNotifier = _onServerClose;
@@ -664,6 +612,7 @@ var RemoteControlManager = (function() {
     // Remove the pairing data for this server
     // if the connection can not be built
     PairingData.remove(aPairInfo.server);
+    console.log(PairingData.getPairs());
 
     // Remove the watchdog after we get the responses from server
     _removeWatchdog(aPairInfo.tabId);
@@ -1544,5 +1493,6 @@ function uninstall(aData, aReason) {
   // Delete the stored pairing data
   if (PairingData) {
     PairingData.deleteAll();
+    console.log(PairingData.getPairs());
   }
 }
