@@ -73,7 +73,10 @@ so this add-on may need to be refactored with new style to meet the new policy.
 ## Gecko
 - TV 2.6: https://github.com/mozilla-b2g/gecko-b2g/tree/b2g48_v2_6
 
-## How to build TV on Flame/Nexus5
+## Build FxOS TV on Nexus Player
+https://developer.mozilla.org/en-US/docs/Mozilla/B2G_OS/Porting_B2G_OS/B2G_Nexus_Player
+
+## Build FxOS TV on Flame/Nexus5
 ```
 $ cd <path/to/B2G>
 $ ./build.sh
