@@ -185,128 +185,6 @@ XPCOMUtils.defineLazyGetter(this, "AuthSocket", function() {
   return sandbox["AuthSocket"];
 });
 
-// Pairing Data module
-// -----------------------------
-// Store and retrieve the pairing data between TV and this add-on
-// Dependence:
-//   Services.jsm     // for Services.prefs.xxx
-// XPCOMUtils.defineLazyGetter(this, "PairingData", function() {
-//   let sandbox = {};
-//   Services.scriptloader.loadSubScript("chrome://fxostv/content/pairingData.js", sandbox);
-//   return sandbox["PairingData"];
-// });
-//
-// This will be called in RemoteControlManager.
-// If we put this into LazyGetter, the immediately executed RemoteControlManager
-// can NOT get it!
-const kServerClientPairsPref = 'fxos.tv.server_client_pairs';
-
-var PairingData = (function () {
-
-  let _cacheData;
-
-  // The Pairing Data structure is:
-  // {
-  //   server1 id: {
-  //     client id: server1 assigned client id,
-  //     pin: the AES base 64 signature from last time for next PIN code,
-  //   }
-  //   server2 id: {
-  //     client id: server2 assigned client id,
-  //     pin: the AES base 64 signature from last time for next PIN code,
-  //   }
-  //   ...
-  // }
-
-  function _debug(aMsg) {
-    console.log('# [PairingData] ' + aMsg);
-  }
-
-  // Return the stored server-client pairing information.
-  // If nothing exist, then return a empty object
-  function getPairs() {
-    _debug('getPairs');
-
-    if (!_cacheData) {
-      _cacheData = (Services.prefs.getPrefType(kServerClientPairsPref)) ?
-        JSON.parse(Services.prefs.getCharPref(kServerClientPairsPref)) : {};
-    }
-
-    return _cacheData;
-  }
-
-  // Save the pairing data
-  function setPairs(aPairs) {
-    _debug('setPairs');
-    let pairsData = JSON.stringify(aPairs);
-    Services.prefs.setCharPref(kServerClientPairsPref, pairsData);
-    // This preference is consulted during startup.
-    Services.prefs.savePrefFile(null);
-  }
-
-  function save(aServerId, aClientId, aPIN) {
-    _debug('save');
-
-    if (!_cacheData) {
-      getPairs();
-    }
-
-    // Create a object if it doesn't exist
-    if (!_cacheData[aServerId]) {
-      _cacheData[aServerId] = {};
-    }
-
-    if (aClientId) {
-      _cacheData[aServerId].client = aClientId;
-    }
-
-    if (aPIN) {
-      _cacheData[aServerId].pin = aPIN;
-    }
-
-    // Save it
-    setPairs(_cacheData);
-
-    return true;
-  }
-
-  function remove(aServerId) {
-    _debug('remove');
-
-    // Retrieve the stored pairing data
-    if (!_cacheData) {
-      getPairs();
-    }
-
-    // If it doesn't exist, then do nothing!
-    if (!_cacheData[aServerId]) {
-      _debug('The ' + aServerId + ' does NOT exist!');
-      return false;
-    }
-
-    delete _cacheData[aServerId];
-
-    // Save it
-    setPairs(_cacheData);
-
-    return true;
-  }
-
-  function deleteAll() {
-    _debug('deleteAll');
-
-    Services.prefs.deleteBranch(kServerClientPairsPref);
-    Services.prefs.savePrefFile(null);
-  }
-
-  return {
-    getPairs: getPairs,
-    save: save,
-    remove: remove,
-    deleteAll: deleteAll,
-  };
-})();
-
 // Remote-control user interface
 // -----------------------------
 // The remote-control client ported from Gaia
@@ -321,6 +199,8 @@ const kRemoteControlUIURL = 'chrome://fxostv/content/remote-control-client/clien
 const kLoadingPageURL = 'chrome://fxostv/content/remote-control-client/loading.html';
 // The waiting time for watchdog
 const kWatchdogTimer = 20; // seconds
+// The preference label for saving the paired devices
+const kPairedDevicesPref = 'fxos.tv.server_client_pairs';
 
 // Remote Control Manager module
 // -----------------------------
@@ -341,6 +221,42 @@ var RemoteControlManager = (function() {
     // }
     // return _bundle.GetStringFromName(aName);
     return Strings.GetStringFromName(aName);
+  }
+
+  // The Paired Devices Information:
+  // {
+  //   server1 id: {
+  //     client id: server1 assigned client id,
+  //     pin: the AES base 64 signature from last time for next PIN code,
+  //   }
+  //   server2 id: {
+  //     client id: server2 assigned client id,
+  //     pin: the AES base 64 signature from last time for next PIN code,
+  //   }
+  //   ...
+  // }
+  let _pairedDevices = {};
+  try {
+    _pairedDevices = (Services.prefs.getPrefType(kPairedDevicesPref)) ?
+      JSON.parse(Services.prefs.getCharPref(kPairedDevicesPref)) : {};
+  } catch(e) {
+    _pairedDevices = {};
+    _flushPairedDevices();
+  }
+
+  function _flushPairedDevices() {
+    _debug('_flushPairedDevices');
+    let data = JSON.stringify(_pairedDevices);
+    Services.prefs.setCharPref(kPairedDevicesPref, data);
+    // This preference is consulted during startup.
+    Services.prefs.savePrefFile(null);
+  }
+
+  function clearPairedDevices() {
+    _debug('clearPairedDevices');
+    _pairedDevices = {};
+    Services.prefs.deleteBranch(kPairedDevicesPref);
+    Services.prefs.savePrefFile(null);
   }
 
   // Store the TLS session information
@@ -458,14 +374,13 @@ var RemoteControlManager = (function() {
             // Show message to user for reconnecting
             // ShowMessage(_getString('service.request.reconnect'), true);
 
-            let serverClientPairs = PairingData.getPairs();
-            console.log(serverClientPairs);
+            console.log(_pairedDevices);
 
             authSocket.connect({
               host: _sessions[msg.tabId].host,
               port: _sessions[msg.tabId].port,
               cert: aCert,
-            }, serverClientPairs, msg.tabId, true)
+            }, _pairedDevices, msg.tabId, true)
             .then(_onSuccess, _onFailure);
           });
 
@@ -597,9 +512,23 @@ var RemoteControlManager = (function() {
       tab.window.location = kRemoteControlUIURL;
     }
 
-    // If this is not the first-time connection, aPairInfo.client is null
-    PairingData.save(aPairInfo.server, aPairInfo.client, aPairInfo.pin);
-    console.log(PairingData.getPairs());
+    // Save the pairing data for the new paired device
+    if (!_pairedDevices[aPairInfo.server]) {
+      _pairedDevices[aPairInfo.server] = {
+        client: aPairInfo.client,
+        pin: aPairInfo.pin,
+      };
+    // If this is a known paired device(not the first time connection),
+    // just update the PIN code for next connection.
+    // Notice that aPairInfo.client is null.
+    } else {
+      _pairedDevices[aPairInfo.server].pin = aPairInfo.pin;
+    }
+
+    // Save the paired devices
+    _flushPairedDevices();
+
+    console.log(_pairedDevices);
 
     // Set callback that will be fired when TV closes the connection
     _sessions[aPairInfo.tabId].authSocket.serverCloseNotifier = _onServerClose;
@@ -611,8 +540,12 @@ var RemoteControlManager = (function() {
 
     // Remove the pairing data for this server
     // if the connection can not be built
-    PairingData.remove(aPairInfo.server);
-    console.log(PairingData.getPairs());
+    if (_pairedDevices[aPairInfo.server]) {
+      delete _pairedDevices[aPairInfo.server];
+      _flushPairedDevices();
+    }
+
+    console.log(_pairedDevices);
 
     // Remove the watchdog after we get the responses from server
     _removeWatchdog(aPairInfo.tabId);
@@ -781,15 +714,14 @@ var RemoteControlManager = (function() {
         // Set a watchdog to wait for the server's response
         _setWatchdog(tab.id);
 
-        let serverClientPairs = PairingData.getPairs();
-        console.log(serverClientPairs);
+        console.log(_pairedDevices);
 
         // Try to connect TV
         return authSocket.connect({
           host: aHost,
           port: aPort,
           cert: aCert,
-        }, serverClientPairs, tab.id);
+        }, _pairedDevices, tab.id);
       })
       .then(_onSuccess, _onFailure)
       .catch(function(aError) {
@@ -805,6 +737,7 @@ var RemoteControlManager = (function() {
 
   return {
     start: start,
+    clearPairedDevices: clearPairedDevices,
   };
 })();
 
@@ -1491,8 +1424,7 @@ function install(aData, aReason) {
 
 function uninstall(aData, aReason) {
   // Delete the stored pairing data
-  if (PairingData) {
-    PairingData.deleteAll();
-    console.log(PairingData.getPairs());
+  if (RemoteControlManager) {
+    RemoteControlManager.clearPairedDevices();
   }
 }
