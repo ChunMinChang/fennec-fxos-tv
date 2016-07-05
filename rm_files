@@ -2,8 +2,11 @@
 XPI=fxos-tv@mozilla.org.xpi
 INST_PAGE=install.html
 
-# Push the add-on to your device to test
+# Remove the add-on file from your device
 adb shell rm /sdcard/$INST_PAGE && \
 adb shell rm /sdcard/$XPI \
+
+# Remove the add-on file in this computer
+rm $XPI
 
 echo Remove $XPI and $INST_PAGE from device\'s /sdcard
