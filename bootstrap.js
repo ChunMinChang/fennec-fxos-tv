@@ -577,8 +577,8 @@ var RemoteControlManager = (function() {
     }
   }
 
-  function validateConnection(aHost) {
-    _debug('validateConnection: ' + aHost);
+  function _validateConnection(aHost) {
+    _debug('_validateConnection: ' + aHost);
 
     return new Promise(function(aResolve, aReject) {
       let pairedTabId = _getTabIdByHost(aHost);
@@ -631,7 +631,7 @@ var RemoteControlManager = (function() {
   function start(aHost, aPort) {
     _debug('start: ' + aHost + ':' + aPort);
 
-    validateConnection(aHost).then(function(aPairedTabId) {
+    _validateConnection(aHost).then(function(aPairedTabId) {
       // If it's still valid, then jump to its page
       _debug('==> Already having a valid connection, tab: ' + aPairedTabId);
       let window = GetRecentWindow();
