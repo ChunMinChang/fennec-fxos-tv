@@ -2,10 +2,9 @@
 [![FxOS Remote Control][RemoteControlImg]][RemoteControlURL]
 
 # Features
-- Scan nearby devices by __W3C Presentation api__
-- Cast webpage to TV via _presentation_ api
-- Remotely control your Firefox OS TV
+- Use Firefox Android as the remote controller for Firefox OS TV
   - protocol: J-PAKE over TLS
+- Cast webpage to TV via __W3C Presentation api__
 
 # Install
 1. Check the ```ANDROID_APP_ID``` in [build](build)
@@ -34,7 +33,8 @@ $ ./rm_files
 ```
 
 # J-PAKE over TLS
-Please read the [my book][jpake] about this to get more detail.
+- Protocol description on [Mozilla Wiki][FxOS_RC]
+- Please read the [my book][jpake] to get more detail.
 
 ## Talk slides
 The Magic behind Remote-control Service of Firefox OS TV: [slides here][slides]
@@ -89,6 +89,7 @@ $ make clean
 $ make GAIA_DEVICE_TYPE=tv DEVICE_DEBUG=1 reset-gaia
 ```
 
+[FxOS_RC]: https://wiki.mozilla.org/Firefox_OS/Remote_Control "Firefox OS/Remote Control"
 [jpake]: https://www.gitbook.com/book/chunminchang/j-pake-over-tls/ "J-PAKE over TLS"
 [RemoteControlImg]: http://img.youtube.com/vi/Hqv_EnqQ86Y/0.jpg "FxOS Remote Control"
 [RemoteControlURL]: https://www.youtube.com/watch?v=Hqv_EnqQ86Y&list=PLSVOWZrQzZlY07b3gR6ONDECSsh-83w9N&index=1 "FxOS Remote Control"
