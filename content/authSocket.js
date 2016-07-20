@@ -1,5 +1,7 @@
 "use strict";
 
+const kJpakePinLength = 32;
+
 var AuthSocket = function() {
 
   // TLS socket
@@ -113,11 +115,40 @@ var AuthSocket = function() {
     return aFingerprint.slice(-26);
   }
 
-  // Synthesize PIN code from original one
+  // return the two-digit hexadecimal code for a byte
+  function _toHexString(aCharCode) {
+    return ("0" + aCharCode.toString(16)).slice(-2);
+  }
+
+  function _bytesFromString(aStr) {
+    let converter =
+      Components.classes["@mozilla.org/intl/scriptableunicodeconverter"]
+      .createInstance(Components.interfaces.nsIScriptableUnicodeConverter);
+    converter.charset = "UTF-8";
+    return converter.convertToByteArray(aStr);
+  }
+
+  function _SHA256(aStr) {
+    let data = _bytesFromString(aStr);
+    let cryptoHash = Components.classes["@mozilla.org/security/hash;1"]
+                     .createInstance(Components.interfaces.nsICryptoHash);
+    // Use the SHA256 algorithm
+    cryptoHash.init(cryptoHash.SHA256);
+    cryptoHash.update(data, data.length);
+    // Pass true here to get base64 string
+    // return cryptoHash.finish(true);
+    // Pass false here to get binary data back
+    let hash = cryptoHash.finish(false);
+    return Array.from(hash, (c, i) => _toHexString(hash.charCodeAt(i))).join("");
+  }
+
+  // Synthesize PIN code for J-PAKE from original PIN
+  // and certificate's fingerprint of the connected server
   function _synthesizePIN(aPIN) {
-    // Mix with the first twelve characters of the server's fingerprint
+    // Mix Pin code with fingerprint
     let fingerprint = _socket.serverCert.sha256Fingerprint;
-    let synthesizedPIN = aPIN + fingerprint.slice(0, 12);
+    let synthesizedPIN = _SHA256(aPIN + fingerprint);
+    synthesizedPIN = synthesizedPIN.slice(-1 * kJpakePinLength);
     return synthesizedPIN;
   }
 
@@ -464,7 +495,7 @@ var AuthSocket = function() {
 
         // Use the latest AES key as the next-time PIN code
         // if the connection is built successfully.
-        pair.pin = _AESKey.slice(0, 4);
+        pair.pin = _AESKey;
 
         // Update a server assigned client id if it needs
         if (aServerAssignedID) {
@@ -504,6 +535,7 @@ var AuthSocket = function() {
     _PIN = aPIN;
 
     let synthesizedPIN = _synthesizePIN(aPIN);
+    _debug('synthesized PIN: ' + synthesizedPIN);
 
     // Compute the Round 2 data and send it to TV
     let peerID = _serverRound1Data.peerID;
