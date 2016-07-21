@@ -92,6 +92,6 @@ $ make GAIA_DEVICE_TYPE=tv DEVICE_DEBUG=1 reset-gaia
 [FxOS_RC]: https://wiki.mozilla.org/Firefox_OS/Remote_Control "Firefox OS/Remote Control"
 [jpake]: https://www.gitbook.com/book/chunminchang/j-pake-over-tls/ "J-PAKE over TLS"
 [RemoteControlImg]: http://img.youtube.com/vi/Hqv_EnqQ86Y/0.jpg "FxOS Remote Control"
-[RemoteControlURL]: https://www.youtube.com/watch?v=Hqv_EnqQ86Y&list=PLSVOWZrQzZlY07b3gR6ONDECSsh-83w9N&index=1 "FxOS Remote Control"
+[RemoteControlURL]: https://www.youtube.com/watch?v=nVu4rxjqtOM&list=PLSVOWZrQzZlY07b3gR6ONDECSsh-83w9N "FxOS Remote Control"
 [slides]: http://chunminchang.github.io/works/remotecontrol/jpake-over-tls.pdf "The Magic behind Remote-control Service of Firefox OS TV"
 <!-- [RemoteControlURL]: https://www.youtube.com/playlist?list=PLSVOWZrQzZlY07b3gR6ONDECSsh-83w9N "FxOS Remote Control" -->
