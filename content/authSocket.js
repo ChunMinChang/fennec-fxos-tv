@@ -1,7 +1,5 @@
 "use strict";
 
-const kJpakePinLength = 32;
-
 var AuthSocket = function() {
 
   // TLS socket
@@ -115,11 +113,6 @@ var AuthSocket = function() {
     return aFingerprint.slice(-26);
   }
 
-  // return the two-digit hexadecimal code for a byte
-  function _toHexString(aCharCode) {
-    return ("0" + aCharCode.toString(16)).slice(-2);
-  }
-
   function _bytesFromString(aStr) {
     let converter =
       Components.classes["@mozilla.org/intl/scriptableunicodeconverter"]
@@ -135,11 +128,8 @@ var AuthSocket = function() {
     // Use the SHA256 algorithm
     cryptoHash.init(cryptoHash.SHA256);
     cryptoHash.update(data, data.length);
-    // Pass true here to get base64 string
-    // return cryptoHash.finish(true);
     // Pass false here to get binary data back
-    let hash = cryptoHash.finish(false);
-    return Array.from(hash, (c, i) => _toHexString(hash.charCodeAt(i))).join("");
+    return cryptoHash.finish(false);
   }
 
   // Synthesize PIN code for J-PAKE from original PIN
@@ -148,7 +138,6 @@ var AuthSocket = function() {
     // Mix Pin code with fingerprint
     let fingerprint = _socket.serverCert.sha256Fingerprint;
     let synthesizedPIN = _SHA256(aPIN + fingerprint);
-    synthesizedPIN = synthesizedPIN.slice(-1 * kJpakePinLength);
     return synthesizedPIN;
   }
 
