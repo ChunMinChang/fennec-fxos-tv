@@ -60,6 +60,12 @@
           // Let user choose to reconnect or not
           chooseReconnect();
           break;
+        case 'no-pin':
+          type = 'no-pin';
+          document.l10n.formatValue(type).then(showError);
+          // Let user choose to reconnect or not
+          chooseReconnect();
+          break;
         default:
           document.l10n.formatValue('connect-error', { status: String(reason) })
                        .then(showError);
@@ -71,7 +77,7 @@
     var onsuccess = function() {
       document.l10n.formatValue('connect-success').then(function(value) {
         pinCodeInput.empty();
-        
+
         // Show successful message to users
         showMessage(value);
         // re-direct url to remote-controller page

@@ -178,9 +178,20 @@ var AuthSocket = function() {
     }
 
     // Error handling
-    if (aMsg.error && aMsg.error == 'PIN expire') {
+    if (aMsg.error) {
       _debug('!!!! Error: ' + aMsg.error);
-      _afterAuthenticatingCallback(false, null, 'pin-expired');
+
+      let error;
+      switch(aMsg.error) {
+        case 'PIN expire':
+          error = 'pin-expired';
+        case 'No secure PIN':
+          error = 'no-pin';
+        default:
+          _afterAuthenticatingCallback(false, null, error);
+          break;
+      }
+
       return;
     }
 

@@ -553,7 +553,10 @@ var RemoteControlManager = (function() {
     // Show error message if aReason is:
     //   pin-expired  : PIN code is expired
     //   wrong-pin    : PIN entered is wrong
-    if (aPairInfo.error == 'pin-expired' || aPairInfo.error == 'wrong-pin') {
+    //   no-pin       : No secure random PIN to use
+    if (aPairInfo.error == 'pin-expired' ||
+        aPairInfo.error == 'wrong-pin' ||
+        aPairInfo.error == 'no-pin') {
       // If the page is pin code page, then show error message on it.
       let window = GetRecentWindow();
       let tab = window.BrowserApp.getTabForId(aPairInfo.tabId);
