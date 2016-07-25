@@ -40,6 +40,10 @@ $ ./rm_files
 The Magic behind Remote-control Service of Firefox OS TV: [slides here][slides]
 
 # Notes
+## TO-DO
+- Refactor all modules in class object format
+- Put ```RemoteControlManager``` into LazyGetter
+
 ## LazyGetter
 Don't call objects defined in LazyGetter in global scope
 because they aren't loaded yet!
