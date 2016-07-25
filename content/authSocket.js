@@ -137,7 +137,10 @@ var AuthSocket = function() {
   function _synthesizePIN(aPIN) {
     // Mix Pin code with fingerprint
     let fingerprint = _socket.serverCert.sha256Fingerprint;
-    let synthesizedPIN = _SHA256(aPIN + fingerprint);
+    let hash = _SHA256(aPIN + fingerprint);
+    // Ignore the highest order bit to make sure it < 256 bits
+    let synthesizedPIN =
+      String.fromCharCode(hash.charCodeAt(0) & 0x7F) + hash.slice(1);
     return synthesizedPIN;
   }
 
